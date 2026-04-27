@@ -1,0 +1,1132 @@
+% !TEX program = pdflatex
+\documentclass[12pt,a4paper]{report}
+
+% ------------------------------------------------------------
+% Page layout and typography
+% ------------------------------------------------------------
+\usepackage[a4paper,left=3cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% ------------------------------------------------------------
+% Mathematics and theorem environments
+% ------------------------------------------------------------
+\usepackage{amsmath,amsthm,mathtools}
+\usepackage{enumitem}
+
+% Times-like text and math fonts
+\usepackage{newtxtext,newtxmath}
+
+% ------------------------------------------------------------
+% Figures, tables, algorithms, and PDF inclusion
+% ------------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{pdfpages}
+
+% ------------------------------------------------------------
+% Links and micro-typography
+% ------------------------------------------------------------
+\usepackage{xcolor}
+\usepackage{microtype}
+\usepackage{hyperref}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  citecolor=blue,
+  urlcolor=blue
+}
+
+% ------------------------------------------------------------
+% Theorem environments
+% ------------------------------------------------------------
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{example}{Example}[section]
+\newtheorem{assumption}{Assumption}[section]
+
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}[section]
+
+% ------------------------------------------------------------
+% Notation
+% ------------------------------------------------------------
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Rp}{\R_{+}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\B}{\mathcal{B}}
+\newcommand{\PP}{\mathbb{P}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\1}{\mathbf{1}}
+\newcommand{\dd}{\,\mathrm{d}}
+\newcommand{\law}{\mathcal{L}}
+
+% ------------------------------------------------------------
+% Title information
+% ------------------------------------------------------------
+\title{Hawkes Stochastic Processes: Theory and Simulation}
+\author{Duc Huy Lam}
+\date{}
+
+\begin{document}
+
+% Cover pages: use external PDF if available; otherwise fall back to the LaTeX title page.
+\IfFileExists{this_ilovepdf_merged(1).pdf}{%
+  \includepdf[pages=1-2,pagecommand={\thispagestyle{empty}}]{this_ilovepdf_merged(1).pdf}%
+}{%
+  \maketitle
+}
+\clearpage
+\thispagestyle{empty}
+\null
+\clearpage
+
+\clearpage
+\thispagestyle{empty}
+\pagenumbering{gobble}
+\chapter*{Acknowledgements}
+
+I would like to express my sincere gratitude to Professor Giorgia Callegaro for her guidance, patience, and intellectual rigor throughout the development of this thesis. Her expertise and her clarity of thought significantly shaped the direction and depth of this work. I am especially grateful for her careful feedback and encouragement during the more technically demanding stages of the research.
+
+\medskip
+\noindent
+I am deeply thankful to my family for their unwavering support, understanding, and quiet strength. Their belief in me has been a constant source of motivation and stability throughout this journey.
+
+\medskip
+\noindent
+I would also like to extend my appreciation to my eye doctor for the attentive care and professionalism that allowed me to continue working comfortably during long periods of reading and writing.
+
+\medskip
+\noindent
+Finally, I wish to thank my friends Yamato and Naa-chan for their companionship and encouragement during this demanding period.
+
+\medskip
+\noindent
+To all of you, I am sincerely grateful.
+\clearpage
+\pagenumbering{roman}
+\setcounter{page}{1}
+
+\chapter*{Abstract}
+This thesis provides an introduction to Hawkes processes, a class of self-exciting point processes widely used to model event clustering phenomena across diverse scientific disciplines. Beginning with the foundational theory of point processes and conditional intensity, we systematically develop the classical Hawkes process and its natural extension to marked Hawkes processes, where each event carries additional information in the form of random marks. We explore the immigration--birth representation, which reveals the underlying branching structure. Particular attention is devoted to the exponentially decaying intensity variant, which enjoys a Markovian structure that substantially simplifies theoretical analysis and enables highly efficient simulation algorithms.
+
+\noindent
+The second part of the thesis focuses on simulation methodology, reviewing both intensity-based thinning algorithms and cluster-based approaches. We present a detailed treatment of the exact simulation algorithm proposed by Dassios and Zhao (2013) \cite{DZ13} for Hawkes processes with exponentially decaying intensity. This method exploits the analytical form of the interarrival distribution to generate event times without numerical inversion or discretization error. The algorithm's correctness and numerical stability are re-verified through a replicated numerical experiment, with empirical moment estimates showing excellent agreement with theoretical values.
+\clearpage
+
+\tableofcontents
+\clearpage
+
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\clearpage
+
+\chapter{Introduction}
+\label{chap:introduction}
+Point processes provide a mathematical framework for modeling the occurrence of events randomly distributed in time or space. Among the various classes of point processes, Hawkes processes have emerged as a particularly powerful tool due to their ability to capture self-exciting behavior---the phenomenon where the occurrence of an event increases the probability of future events. Originally introduced by Alan G. Hawkes in his seminal 1971 paper \cite{Haw71}, these processes have since found applications across a remarkable range of disciplines, including the historical discipline of seismology (e.g., Ogata (1988) \cite{Oga88}). The explosion in popularity of Hawkes processes in the last 20 years may possibly be attributed to finance (e.g., Hawkes (2018) \cite{Haw18}).
+
+\medskip
+\noindent
+The defining characteristic of a classical Hawkes process is its conditional intensity, which comprises a constant baseline component and an excitatory component that accumulates contributions from past events. This self-exciting mechanism naturally generates clustering behavior---events tend to occur in bursts---making Hawkes processes particularly suitable for modeling phenomena where temporal contagion is present. The immigration--birth representation, established by Hawkes and Oakes (1974) \cite{HO74}, reveals an elegant branching structure interpretation: immigrants arrive according to a Poisson process, and each event independently generates its own offspring according to a Poisson process. This cluster-based viewpoint not only provides intuitive understanding but also proves invaluable for theoretical analysis and simulation methodology.
+
+\medskip
+\noindent
+Over the past five decades, the Hawkes process framework has been extended in numerous directions. A simple but notable marked Hawkes process associates a random mark with each event, allowing the model to incorporate additional information such as earthquake magnitudes, financial transaction volumes, or insurance claim sizes. Perhaps most significantly for practical applications, the exponentially decaying intensity variant possesses a Markovian structure that renders the process analytically tractable and computationally efficient.
+
+\medskip
+\noindent
+Despite the growing popularity of Hawkes processes in applied fields, their mathematical underpinnings and simulation techniques remain scattered across the research literature. This thesis aims to provide a self-contained, accessible introduction to the theory and simulation of Hawkes processes, synthesizing key results from foundational papers and recent developments.
+
+\medskip
+\noindent
+The thesis is structured as follows. Part I covers the theoretical foundations. Chapter 2 introduces point processes and conditional intensity, then defines the classical univariate Hawkes process and its self-exciting property. Chapter 3 extends the framework to marked Hawkes processes, presenting the conditional time-mark intensity and examining mark dependence structures. Chapter 4 explores the immigration--birth representation, revealing the branching structure that underpins process stability and cluster-based simulation. Chapter 5 focuses on the exponentially decaying intensity variant, deriving its Markovian dynamics and inter-arrival distributions.
+
+\medskip
+\noindent
+Part II addresses simulation. Chapter 6 surveys the simulation landscape, comparing intensity-based with cluster-based approaches. Chapter 7 provides a detailed treatment of the exact simulation algorithm of Dassios and Zhao (2013) for exponentially decaying intensity Hawkes processes, with a replicated numerical experiment. Chapter 8 concludes with a summary of contributions and directions for future research.
+
+\part{Theory}
+
+\chapter{Classical Hawkes process}
+\label{chap:2}
+
+\section{Preliminary point process}\label{sec:2.1}
+In Chapter II of Brémaud (1981) \cite{Bre81}, three equivalent representations exist for point processes on the half‑line $\mathbb{R}_+ := [0,\infty)$: they may be characterized as an increasing sequence of non‑negative random variables, as a random discrete measure, or through their associated counting process.
+This chapter presents a basic variant of point processes, following the exposition in Chapter 2.1 of Laub et al. (2022) \cite{LLT22}. Their approach begins with the definition of a counting process, from which the associated point process is subsequently derived as the sequence of corresponding random variables. The counting process serves as the fundamental object upon which key constructions—including the classical Hawkes process discussed in Section \ref{sec:2.2}—are defined. For more general treatment of theory of point process, see Daley and Vere-Jones (2003) \cite{DVJ03}.
+
+\medskip
+\noindent
+Fix an underlying probability space $(\Omega, \mathcal{F}, \mathbb{P})$. All the following objects, such as random variables and stochastic processes, are defined on this space.
+
+\medskip
+\noindent
+From Definitions 2.1 in Laub et al. (2022) \cite{LLT22}, a \emph{counting process} $N(t)$, defined for $t\ge0$, is a right-continuous with left-limits\footnote{In the literature, this type of continuity is called c\`adl\`ag; see Br\'emaud (1981) \cite{Bre81}.} stochastic process taking integer values in $\mathbb{N}_0 = \{0, 1, 2, \dots\}$ such that: $N(0)=0$, $N(\cdot)$ increases only by \emph{jumps} of size $+1$, and $N(t)$ is almost surely (a.s.)\footnote{Informally, almost all realizations satisfy the properties under consideration.} finite for every $t\ge0$.
+
+\medskip
+\noindent
+From Definition 2.2 in Laub et al. (2022) \cite{LLT22}, the sequence of increasing random jump times of the counting process $N(\cdot)$, denoted $\mathbf{T}:=(T_n)_{n\ge1}$, forms a \emph{point process}. The associated \emph{point process} $\mathbf{T}$ on $(0,\infty)$\footnote{Alternatively, one may set $T_0=0$ a.s., yielding a point process on $[0,\infty)$; see Laub et al. (2024)\cite{LLPT24}.} (that is, a realization of the point process is a set of observed jump times $(t_n)_{n\ge1} \subset (0,\infty)$) corresponding to the counting measure $N(\cdot)$ is \emph{simple} and \emph{non-explosive} (or locally finite) (see Section 2.1 in Laub et al. (2024)\cite{LLPT24}). The sequence $(T_n)_{n\ge1}$ is strictly increasing with $0<T_1<T_2<\cdots<\infty$ a.s. Simplicity means that no two jumps occur simultaneously, i.e., at most one jump at any given time. Non-explosiveness means that only finitely many $T_n$ lie in any bounded time interval; equivalently, the \emph{explosion time} $T_\infty := \lim_{n\to\infty} T_n = \infty$ a.s. The counting process $N(\cdot)$ can be represented in terms of the associated point process $\mathbf{T}$ as:
+\begin{equation}\label{eq:counting-process}
+N(t):=\sum_{n\ge 1}\mathbf 1_{\{T_n\le t\}},\qquad t \ge 0.
+\end{equation}
+Conventionally, the $T_n$ are also called \emph{arrival times} or \emph{event times}, and we denote $S_n := T_n - T_{n-1}$ as the \emph{inter-arrival times}; see Daley and Vere-Jones (2003) \cite{DVJ03}, Laub et al. (2024)\cite{LLPT24}. From Equation \eqref{eq:counting-process}, $N(t)$ counts the cumulative number of arrivals $T_n$ from time $0$ up to and including $t$. Following the convention in Laub et al. (2022) \cite{LLT22}, we refer to $N(\cdot)$ (alternatively denoted $N$ or $N_t$) interchangeably as either the counting process or the point process, as both objects contain the same information.
+
+\medskip
+\noindent
+ We are particularly interested in the characterization of this variant of point process via the \emph{conditional intensity process}.
+\subsubsection*{Conditional intensity process}
+
+Let $\mathbb{F}^N = (\mathcal{F}^N_t)_{t \ge 0}$ be the natural filtration generated by the counting process $N$, where
+\begin{equation}\label{eq:history}
+\mathcal{F}^N_t := \sigma\!\left( N_s : 0 \le s \le t \right), \qquad
+\mathcal{F}^N_{t-} := \sigma\!\left( N_s : 0 \le s < t \right)\footnote{A $\sigma$-algebra generated by a collection of random variables $N_s$; see Br\'emaud (1981) \cite{Bre81} for further details.}.
+\end{equation}
+Following the convention in Daley and Vere-Jones (2003) \cite{DVJ03}, we denote $\mathcal{H}_t := \mathcal{F}^N_t$ as the \emph{history} of the counting process $N$, containing all information generated by arrivals up to and including time $t$, while $\mathcal{H}_{t-} := \mathcal{F}^N_{t-}$ represents the history up to, but not including, time $t$.
+
+\medskip
+\noindent
+Following Chapter 2.3 in Laub et al. (2022) \cite{LLT22}, a counting process $N$ (from Equation \eqref{eq:counting-process}) admits a \emph{conditional intensity process} $\lambda(\cdot)$ if the limit on the right-hand side exists for all $t\ge0$ and $\lambda(\cdot)$ is defined accordingly:
+\begin{equation}\label{eq:conditional-intensity}
+\lambda(t) := \lim_{\Delta \downarrow 0} \frac{\mathbb{E}\!\left[ N(t+\Delta) - N(t) \mid \mathcal{H}_{t-} \right]}{\Delta}, \qquad t \ge 0.
+\end{equation}
+In particular, the conditional intensity process $\lambda(\cdot)$ (also denoted interchangeably as $\lambda_t$ or simply $\lambda$) is a non-negative, left-continuous with right-limits\footnote{Such processes are referred to as c\`agl\`ad (continue à gauche, limite à droite).} stochastic process such that, for all $t\ge0$, the random variable $\lambda_t$\footnote{Since $\lambda(\cdot)$ is a stochastic process, each $\lambda_t$ for $t\ge0$ is a random variable.} is $\mathcal{H}_{t-}$-measurable; in other words, $\lambda_t$ is \emph{predictable}\footnote{More formally, $\lambda$ is an $\mathbb{F}^N$-predictable stochastic process; see Theorem T12 in Section II.4 of Br\'emaud (1981) \cite{Bre81}.} in the sense that it depends only on the information from $N(\cdot)$ in the past, strictly before time $t$ (see Section 2.2 in Laub et al. (2024)\cite{LLPT24}). Moreover, the conditional intensity value $\lambda_t$ measures the instantaneous expected \emph{rate of arrival} at time $t$. Loosely speaking, $\lambda_t$ describes, ahead of time, how arrivals in $N$ are expected to behave over the infinitesimal interval $(t, t+dt]$. Figure \ref{fig:1} depicts a realization of the pair $(\lambda, N)$, with $\lambda$ displaying the \emph{self-exciting} characteristic (discussed in more detail in Section \ref{sec:2.2}).
+
+\medskip
+\noindent
+In the following chapters, when we refer to the conditional intensity process $\lambda(\cdot)$ (from Equation \eqref{eq:conditional-intensity}), we will occasionally simply call it the \emph{intensity} or the \emph{time intensity} of the process $N$ (to distinguish it from the \emph{time-mark} conditional intensity process introduced in Chapter \ref{chap:3}) when the context is clear.
+
+\medskip
+\noindent
+We now present a series of remarks that highlight not only the theoretical role of the conditional intensity process in the analysis of point processes (and later, specifically for the Hawkes process), but also its crucial role in simulation, which will be addressed in Part II. We begin with the following remark on the historical perspective of the conditional intensity process.
+
+\begin{remark}[On characterization of the point process via conditional intensity process]\label{rem:cdf}
+\noindent
+Following the discussion in Chapter 2.3 of Laub et al. (2022) \cite{LLT22}, the conditional intensity process of a point process (from Equation \ref{eq:conditional-intensity}), when viewed as a function, was originally termed the \emph{hazard function} (see Cox (1955) \cite{Cox55}) and was defined for $t\ge0$, given that $T_n < t$ is the \emph{most recent arrival}, as:
+\[
+\lambda_t := \frac{f_{T_{n+1}}(t \mid \mathcal{H}_{T_n})}{1 - F_{T_{n+1}}(t \mid \mathcal{H}_{T_n})},
+\]
+
+\medskip
+\noindent
+where, following the definitions in Ozaki (1979) \cite{Oza79},
+$F_{T_{n+1}}(\cdot \mid \mathcal{H}_{T_n})$ denotes the conditional cumulative distribution function (c.d.f.) of the next arrival time $T_{n+1}$ given the history up to the last arrival $\mathcal{H}_{T_n}$\footnote{Roughly speaking, we may view $T_n = t_n$ as a realization; hence $\mathcal{H}_{T_n}$ corresponds to the history up to that event time $t_n$. More formally, this is the stopped $\sigma$-algebra at $T_n$ with respect to the filtration $\mathbb{F}^N$; see Last and Brandt (1995) \cite{LB95} for details.}, i.e.,
+\[
+F_{T_{n+1}}(t \mid \mathcal{H}_{T_n}) = \int_{T_n}^{t} \mathbb{P}\!\left( T_{n+1} \in (s, s+ds] \;\middle|\; \mathcal{H}_{T_n} \right), \quad t > T_n,
+\]
+and $f_{T_{n+1}}(\cdot \mid \mathcal{H}_{T_n})$ is the conditional density of $T_{n+1}$ given $\mathcal{H}_{T_n}$, i.e.,
+\[
+f_{T_{n+1}}(t \mid \mathcal{H}_{T_n}) = \mathbb{P}\!\left( T_{n+1} \in (t, t+dt] \;\middle|\; \mathcal{H}_{T_n} \right), \quad t > T_n.
+\]
+\noindent
+We deliberately omit the conditioning on these objects when the context is clear. The following identities also hold (see Ozaki (1979) \cite{Oza79}, Laub et al. (2022) \cite{LLT22}):
+\[
+F_{T_{n+1}}(t) = 1 - \exp\left(-\int_{T_n}^t \lambda_s \, ds\right),\quad
+f_{T_{n+1}}(t) = \lambda(t) \exp\left(-\int_{T_n}^t \lambda_s \, ds\right), \quad t > T_n.
+\]
+Consequently, the conditional cumulative distribution function of the $(n+1)$-th inter-arrival time given the history up to the most recent arrival $T_n$ (or simply given $T_n$ for brevity) is
+\begin{equation}\label{eq:cdf-S}
+    F_{S_{n+1}}(s) = 1 - \exp\left(-\int_{T_n}^{T_n+s} \lambda_u \, du\right), \quad s > 0.
+\end{equation}
+Notice from Equation \eqref{eq:cdf-S} that if $\int_{T_n}^{\infty} \lambda_u \, du = \infty$, then $F_{S_{n+1}}(s) \to 1$ as $s \to \infty$, guaranteeing that the next arrival occurs almost surely. If instead $\int_{T_n}^{\infty} \lambda_u \, du < \infty$, then $\lim_{s\to\infty} F_{S_{n+1}}(s) < 1$, indicating a non-zero probability that no subsequent arrival occurs.
+\hfill $\square$
+\end{remark}
+
+\section{The classical Hawkes process}\label{sec:2.2}
+In this section, we focus on the definition of the classical Hawkes process and its interpretations; accordingly, we implicitly assume the existence and well-definedness of the process with respect to some underlying probability space. The following definition is motivated by the original work in Hawkes (1971) \cite{Haw71}, where the conditional intensity was first historically specified, and is taken from Definition 2.4 in Laub et al. (2024) \cite{LLPT24}.
+\begin{definition}\label{def:2.2.1}
+Given the specification discussed in Section \ref{sec:2.1}, the \emph{classical (linear, univariate, unmarked) Hawkes process} is a counting process $N(\cdot)$ whose conditional intensity process $\lambda(\cdot)$ in Equation \eqref{eq:conditional-intensity} is \emph{self-exciting} and of the form:
+\begin{equation}\label{eq:hawkes-intensity}
+\lambda_t = \eta + \int_{(0,t)} \mu(t-s) \, dN(s), \qquad t \ge 0,
+\end{equation}
+where the stochastic integral\footnote{The jump size of Hawkes counting process $N$ at time $t$ is defined as $\Delta N(t) := N(t) - N(t-)$, with $\Delta N(t) = 1$ whenever an arrival occurs. The stochastic integral with respect to $N$ (for general definition, see Br\'emaud (1981) \cite{Bre81}) assumes the following form in \eqref{eq:stochastic-integral}.} with respect to the counting process $N(\cdot)$ is given by
+\begin{equation}\label{eq:stochastic-integral}
+\int_{(0,t)} \mu(t-s) \, dN(s) := \sum_{T_n < t} \mu(t - T_n), \quad t \ge 0.
+\end{equation}
+
+where $\eta>0$ is the (deterministic) \emph{background rate} and $\mu:\R_+\to\R_+$ is a (deterministic) locally integrable \emph{excitation function}.
+\hfill $\square$
+\end{definition}
+\noindent
+The background rate $\eta$ governs the rate of arrivals of a certain type of event (more precisely, the \emph{immigrants}; see Chapter \ref{chap:4}). The excitation function $\mu$ (of times) determines how arrivals in the past influence the rate of arrivals of future events; the choice of different forms for $\mu$ in the literature offers additional advantages from various perspectives, including simulation, computation, or modelling (see Chapter \ref{chap:5}).
+
+\medskip
+\noindent
+According to a definition by Laub et al. (2024) \cite{LLPT24}, the \emph{self-exciting} property means that the occurrence of an event causes the intensity to increase, consequently triggering further events in the near future. Figure \ref{fig:1} illustrates a simulated classical Hawkes process $N$ alongside its corresponding exponentially decaying intensity $\lambda$ (see Chapter \ref{chap:5} for further discussion of this form of $\mu$). The self-exciting property is clearly evident in this illustration: immediately after each arrival time $T_n$, the intensity $\lambda$ increases by a constant \emph{self-excitation jump}; this increased intensity implies a higher likelihood of a subsequent arrival occurring shortly thereafter.\footnote{By Definition 3.1 of Laub et al. (2022) \cite{LLT22}, $\mathbb{P}\big( N(t+dt) - N(t) = 1 \mid \mathcal{H}_{t-} \big) = \lambda(t)\,dt$.} in the associated Hawkes process $N$. Consequently, as noted by Laub et al. (2024) \cite{LLPT24} for a classical Hawkes process, arrivals occur in clusters more frequently than would be expected under a Poisson process, a contagion effect that classical Poisson models fail to capture (see Figure \ref{fig:onepath} and the follow-up discussion in Section \ref{sec:7.2}). As noted by Dassios and Zhao (2013) \cite{DZ13}, this feature of Hawkes processes is particularly useful for modelling contagion risk, such as the clustering of defaults during economic crises (see, e.g., Aït-Sahalia and Hurd (2016) \cite{AH16}).
+
+\medskip
+\noindent
+The notably simple explicit summation form in Definition \ref{def:2.2.1} clearly satisfies the measurability condition with respect to the history of past event times discussed in connection with Equation \eqref{eq:conditional-intensity}, and proves convenient in various contexts (e.g., simulation and likelihood estimation; see Laub et al. (2022) \cite{LLT22} for further details).
+
+\begin{remark}{(Generalizations from Definition \ref{def:2.2.1})}
+
+\begin{enumerate}[label=(\roman*),leftmargin=2.2em]
+\item[(i)] Following the recent survey of Laub et al. (2024) \cite{LLPT24}, numerous generalizations of Definition \ref{def:2.2.1} have appeared in the literature. Lewis et al. (2012) \cite{Lew12} considered a time-dependent version of the background rate $\eta$. The (deterministic) excitation function may also depend on an additional variable (see Section \ref{sec:3.2}, where this variable is referred to as a \emph{mark}) or may itself be a general stochastic process (see, for instance, Bielecki et al. (2023) \cite{BNJ23}).
+\item[(ii)] Instead of considering a point process (and its associated counting process) on $\mathbb{R}_+$ as in Section \ref{sec:2.1} (see also Chapter \ref{chap:4}), one may consider the process on the entire real line $\mathbb{R}$. In Definition \ref{def:2.2.1}, the integral is taken over the interval $(0,t)$. Historically, Hawkes (1971) \cite{Haw71} considered integration over $(-\infty,t)$. Note that if one requires stationarity (outside the scope of this thesis) of the Hawkes process, one must work with an infinite past history (see Møller and Rasmussen (2006) \cite{MR06}). However, for the purpose of definition, the specification above is sufficient; equivalently, one may assume that the process has \emph{empty history} on $(-\infty,0)$.
+\end{enumerate}\hfill $\square$
+\end{remark}
+
+\begin{figure}[htbp]
+    \centering
+    \IfFileExists{Fig1_Laub_style_colored.png}{%
+    \includegraphics[width=\linewidth]{Fig1_Laub_style_colored.png}%
+}{%
+    \fbox{\parbox{0.85\linewidth}{\centering Missing figure: \texttt{Fig1\_Laub\_style\_colored.png}}}%
+}
+    \caption{One simulated sample path of a classical Hawkes process
+with exponential excitation function $\mu(t)=e^{-2t}$ and background rate
+$\eta=0.5$. The top panel shows the counting process $N_t$,
+which is right-continuous with left limits, while
+the bottom panel displays the intensity $\lambda_t$,
+which is left-continuous with right limits.
+Open and filled circles indicate the existence of one-sided limits and one-sided continuity
+at jump times, respectively.}
+    \label{fig:1}
+\end{figure}
+
+\chapter{Marked Hawkes process}
+\label{chap:3}
+
+Roughly speaking, a \emph{mark} is a random variable attached to each arrival in the underlying point process. Common examples include earthquake magnitudes, financial transaction volumes, and insurance claim sizes (see Laub et al. (2024) \cite{LLPT24} for a survey of applications). Consider, for instance, the arrival of market orders to an exchange, as discussed in Joseph and Jane (2024) \cite{JJ24}. A (unmarked) Hawkes process can capture the temporal dependence between successive order arrivals, but it cannot account for the role of order volume in shaping market dynamics. By contrast, a marked Hawkes process allows the model to incorporate not only the timing of past orders but also their volumes when predicting future activity. This feature is crucial for understanding how past order volumes influence the subsequent evolution of the market orders.
+
+\section{Preliminary marked point process}\label{sec:3.1}
+As highlighted by Liniger (2009) \cite{Lin09}, a point process defined on the positive half-line $\mathbb{R}_+$ admits three fundamental and equivalent representations. First, it can be characterized by the ordered sequence of its constituent points, represented as a strictly increasing set of random variables $(T_n)_{n\ge 1}$ corresponding to the event times. Second, it can be viewed by its associated counting process $N_t$, which records the cumulative number of events that have occurred up to and including time $t$. Third, the point process can be interpreted as a random counting measure, assigning to each (\emph{nice}) subset of $\mathbb{R}_+$ the random number of points it contains.
+
+\medskip
+\noindent
+In this chapter, we adopt the notations of Last and Brandt (1995) \cite{LB95} on the theory of marked point processes. Our starting point is the representation of a simple variant of marked point process via an ordered sequence of event times, each associated with a mark. From this sequence, we construct a random counting measure, which yields a basic formulation of a marked point process sufficient for the introduction of the marked Hawkes process in Section \ref{sec:3.2}. Consequently, unlike in Chapter \ref{chap:2}---where the counting process served as the primary object for defining the conditional intensity function and the classical Hawkes process---the counting process plays a less central role here. This shift in emphasis leads to some conflicts in notation, which will be clarified as they arise.
+
+\medskip
+\noindent
+Let $(\Omega,\mathcal{F},\mathbb{P})$ be an arbitrary probability space. Let $(X,\mathcal{X})$ be a measurable \emph{mark space}\footnote{The space $X$ must be sufficiently regular; formally, $X$ is a Borel subset of a compact metric space (see Jacod (1975) \cite{Jac75}). Here $\mathcal{X}$ denotes the corresponding Borel $\sigma$-algebra, a collection of \emph{nice} subsets of $X$ (for example, $\mathcal{B}(\mathbb{R}_+)$ is the Borel $\sigma$-algebra on $\mathbb{R}_+$; see Last and Brandt (1995) \cite{LB95} for a definition), which in particular contains all open and closed intervals.}
+(without loss of generality, we may take $(X,\mathcal{X}) = (\mathbb{R}_+, \mathcal{B}(\mathbb{R}_+))$).
+A simple, non-explosive \emph{marked point process} on $\R_+\times X$
+is a sequence:
+\begin{equation}\label{eq:mpp}
+((T_n,X_n))_{n\ge1},
+\end{equation}
+such that event times $T_n\in(0,\infty)$, associated marks $X_n\in X$,
+strictly increasing and no more than one event at any time $T_n < T_{n+1}$ for all $n\ge1$ a.s.
+Explosion time at infinity
+$T_\infty := \lim_{n \to \infty} T_n=\infty$ a.s.
+We adopt the convention of abuse of notation (see Last and Brandt (1995) \cite{LB95}), we write $N:=((T_n,X_n))_{n\ge1}$ as we refer to the considered marked point process from Equation \eqref{eq:mpp}.
+
+\medskip
+\noindent
+We associate an (integer-valued) random counting measure
+on $(\mathbb{R}_+ \times X, \mathcal{B}(\mathbb{R}_+)\otimes\mathcal{X})$, denoted by $N(\mathrm{d}t,\mathrm{d}x)$ (a convention also adopted from Last and Brandt (1995) \cite{LB95}), such that for $0 \le s \le t$ and $A \in \mathcal{X}$:
+\begin{equation}
+N(\mathrm{d}t,\mathrm{d}x)\;=\;\sum_{n\ge 1}\delta_{(T_n,X_n)}(\mathrm{d}t,\mathrm{d}x),
+\qquad N\bigl((s,t]\times A\bigr)=\sum_{n\ge 1}\mathbf{1}_{\{T_n\le t\}}\mathbf{1}_{\{s< T_n\}}\mathbf{1}_{\{X_n\in A\}},
+\label{eq:marked-measure}
+\end{equation}
+where $\delta_{(t,x)}(\mathrm{d}t,\mathrm{d}x)$ denotes the Dirac measure\footnote{For a definition, see Last and Brandt (1995) \cite{LB95}.} at the point $(t,x)$. In particular, the random variable\footnote{For a well-defined random measure, its restriction to any measurable set yields a random variable; see Last and Brandt (1995) \cite{LB95}.} $N((s,t]\times A)$ counts the number of arrivals occurring in the time interval $(s,t]$ (including time $t$) whose marks fall within the specified subset $A \in \mathcal{X}$.
+
+\medskip
+\noindent
+From Chapter 6.4 in Daley and Vere-Jones (2003) \cite{DVJ03} with some adaptation, under the above specification of the marked point process $N$, we can recover the counting process and the associated (unmarked) point process from Chapter \ref{chap:2} by defining the \emph{ground counting process} $N^{g}(\cdot)$. This process counts the total number of arrivals irrespective of their marks, and is obtained from the random measure $N(\mathrm{d}t,\mathrm{d}x)$ (see Equation \eqref{eq:marked-measure}) as
+\begin{equation}
+N^{g}(t)\;:=\;N\bigl((0,t]\times X\bigr)=\sum_{n\ge 1}
+\mathbf{1}_{\{T_n\le t\}}, \qquad t\ge0,
+\label{eq:ground-counting}
+\end{equation}
+which coincides precisely with the counting process defined in Equation \eqref{eq:counting-process}.
+
+\medskip
+\noindent
+Next, we typically characterize a marked point process via its \emph{conditional time-mark intensity process}. It is worth noting that in Chapter \ref{chap:2}, we defined the conditional intensity for the counting process associated with an \emph{unmarked} point process. In the marked setting, this concept must be extended to account for the dependence of marks on both the event times and the history of the marked point process.
+
+\medskip
+\noindent
+\textbf{Conditional time-mark intensity process and mark dependency}
+
+\medskip
+\noindent
+We now follow the convention of defining the history of a marked point process. Let $\mathbb{F}^N=(\mathcal{F}^N_t)_{t\ge 0}$ denote the natural filtration generated by the marked point process $N$ from Equation \eqref{eq:mpp}. Analogously to the Equation \eqref{eq:history}, where
+\begin{equation}\label{eq:marked-history}
+\mathcal{F}^N_{t-} \;:=\; \sigma\bigl( N((s,r]\times A) : 0\le s<r< t,\ A\in\mathcal{X} \bigr).
+\end{equation}
+We refer to $\mathcal{H}_{t-} := \mathcal{F}^N_{t-}$, for $t\ge 0$, as the \emph{marked history} (or simply \emph{history} for brevity), which contains all information about the marked point process up to, but excluding, time $t$.
+
+\medskip
+\noindent
+The following definition is adopted from Laub et al. (2024) \cite{LLPT24}, where the interpretation of the related objects are from Daley and Vere-Jones (2003) \cite{DVJ03}. Analogous to Section \ref{sec:2.1}, the \emph{conditional time-mark intensity process} $\lambda(\cdot,\cdot)$ of the marked point process $N$ is defined for $(t,x) \in \mathbb{R}_+ \times X$ as
+\[
+\lambda(t, x) := \lim_{\Delta t, \Delta x \to 0} \frac{\mathbb{E}[N((t, t + \Delta t] \times (x, x + \Delta x]) \mid \mathcal{H}_{t-}]}{|\Delta x|\,|\Delta t|},
+\]
+provided the limit exists. When the context is clear, we refer to this simply as the conditional intensity of $N$.
+
+\medskip
+\noindent
+Given the existence of $\lambda(\cdot,\cdot)$, the following standard decomposition holds (see Chapter 6 in Liniger (2009) \cite{Lin09}; see also Daley and Vere-Jones (2003) \cite{DVJ03}):
+\begin{equation}\label{eq:factorization_ground_mark}
+\lambda(t,x)\;=\;\lambda^{g}(t\mid \mathcal{H}_{t-})\; f(x\mid t,\mathcal{H}_{t-}), \qquad  (t,x) \in \mathbb{R}_+ \times X,
+\end{equation}
+where $\lambda^{g}(\cdot\mid \mathcal{H}_{t-})$ (denoted simply as $\lambda^{g}(\cdot)$ when the context is clear) is the conditional intensity process of the ground process $N^g$ (equivalently, the conditional \emph{time} (or \emph{ground}) intensity of the marked point process $N$), and $f(\cdot\mid t,\mathcal{H}_{t-})$ is a conditional \emph{mark density} (with respect to the marked history up to time $t$) for the mark at time $t$. Specifically, $f(x\mid t,\mathcal{H}_{t-})$ represents the conditional probability density that an event occurring at time $t$ carries the mark $x$, given the history up to that time.
+
+\medskip
+\noindent
+We now introduce a common assumption on mark dependence found in the literature, upon which many theoretical results for point processes (including the Hawkes process; see, for example, the limit theorems of Karabash and Zhu (2015)\cite{KZ15}) rely. The following assumption is taken from Chapter 2 of Joseph and Jane (2024) \cite{JJ24}, which itself is based on Definition 6.4.III in Daley and Vere-Jones (2003) \cite{DVJ03}.
+
+\begin{assumption}\label{assumption:mark-dependence}(Mark dependency on marked history and event times).
+We distinguish two special dependence structures for marks.
+\begin{enumerate}
+\item[(i)] The marked point process $N$ has \emph{independent marks} if, conditioning on the event times $(T_n)_{n\ge 1}$, the marks $(X_n)_{n\ge 1}$ are mutually independent, and the distribution of $X_n$ depends only on $T_n$.
+
+\item[(ii)] Marked point process $N$ has \emph{unpredictable marks} if, for each $t$, the distribution of the mark at time $t$ does not depend on the marked history up to $t$, i.e. $f(x\mid t,\mathcal{H}_{t-}) = f(x\mid t)$.
+\end{enumerate}
+\end{assumption}
+
+\noindent
+Following the discussion in Chapter 2 of Joseph and Jane (2024) \cite{JJ24}, we have the consequences of the two regimes. The \emph{independent marks} regime implies that marks and event times are mutually independent: marks do not affect when future events occur, and event times do not affect the distribution of marks. Meanwhile, the \emph{unpredictable marks} regime implies that marks can affect when future events occur (through the intensity), but event times do not affect the distribution of marks; in particular, the mark distribution at time $t$ is the same regardless of what happened before $t$.
+
+\begin{remark}
+In this remark, we briefly mention the measurability properties of various objects associated with a marked point process, without delving into formal details or providing full interpretations. Following the results of Last and Brandt (1995) \cite{LB95} (see in particular Proposition 4.1.1 and Theorem 2.2.4), we consider the $\mathbb{P}$-completed version of the natural filtration $\mathbb{F}^N$ of the marked point process $N$. This completed filtration satisfies the usual conditions, i.e., it is right-continuous and complete. Consequently, $N$ is an $\mathbb{F}^N$-optional process, the jump times $T_n$ are $\mathbb{F}^N$-stopping times, and the marks $X_n$ are $\mathcal{F}^N_{T_n}$-measurable. The conditional intensity process of $N$ (when it exists) is a $\mathbb{F}^N$-predictable.
+\hfill $\square$
+\end{remark}
+
+\section{Marked Hawkes process}
+\label{sec:3.2}
+In the literature, early versions of the marked Hawkes process appeared as early as Hawkes (1972) \cite{Haw72}. Notably, in the special case where the mark space is finite and discrete, the marked process reduces to a multivariate unmarked Hawkes process; see for instance Br\'emaud et al. (2002) \cite{Bre02}, Bacry et al. (2013) \cite{Bac13}. In this section, we present a univariate (linear) marked Hawkes process, adapted from Chapter 2 of Joseph and Jane (2024) \cite{JJ24} which itself is based on Daley and Vere-Jones (2003) \cite{DVJ03}, without concerning ourselves with questions regarding the existence of such a process.
+
+\begin{definition}\label{def:marked-HP}
+Given the specification in Section \ref{sec:3.1}, a marked point process $N$ on $\mathbb{R}_+ \times X$ is a (univariate, linear) marked Hawkes process if $N$ admits an i.i.d.\ (independent, identically distributed) (unconditional) mark density $f(\cdot)$ on $X$, and its conditional mark-time intensity takes the form
+\begin{equation}\label{eq:marked-HP}
+\lambda(t,x) = \left( \eta + \int_{(0,t)\times X} \mu(t-s,y) \, N(\mathrm{d}s,\mathrm{d}y) \right) f(x), \qquad (t,x)\in \mathbb{R}_+\times X,
+\end{equation}
+where:
+\begin{itemize}
+\item $\eta > 0$ is a deterministic constant background rate.
+\item $\mu: \mathbb{R}_+ \times X \to \mathbb{R}_+$ is a deterministic, locally integrable \emph{transfer function}\footnote{Sometimes referred to as the excitation function for consistency with Definition \ref{def:2.2.1}.} that quantifies how a past event at time $s$ with mark $y$ contributes to the intensity at time $t > s$ (see Definition \ref{def:cluster-based} for connection).
+\end{itemize}
+The stochastic integral with respect to the random counting measure $N(\mathrm{d}s,\mathrm{d}y)$\footnote{Pathwise, for each realization, this reduces to an ordinary Lebesgue-Stieltjes integral with respect to a counting measure. For a rigorous measure-theoretic treatment, see Last and Brandt (1995) \cite{LB95}.} is interpreted as a sum over past marked events:
+\[
+\int_{(0,t)\times X} \mu(t-s,y) \, N(\mathrm{d}s,\mathrm{d}y) := \sum_{T_n < t} \mu(t - T_n, X_n).
+\]
+\hfill $\square$
+\end{definition}
+
+\noindent
+Notice that the form of the conditional intensity $\lambda(\cdot,\cdot)$ of the Hawkes process $N$ in Definition \ref{def:marked-HP} satisfies both the independent marks and unpredictable marks regimes from Assumption \ref{assumption:mark-dependence}. Indeed, the conditional mark density satisfies
+\[
+f(x\mid t,\mathcal{H}_{t-}) \equiv f(x), \qquad x\in X,\quad t\ge 0,
+\]
+which is independent of both the event time $t$ and the marked history $\mathcal{H}_{t-}$. Consequently, the marks are i.i.d. with (unconditional) mark density $f$ (see Chapter 6 in Liniger (2009) \cite{Lin09}). Hence, the condition that the marks of $N$ are drawn i.i.d. from a fixed mark density $f$ on $X$ is automatically satisfied.
+
+\medskip
+\noindent
+The time (or ground) intensity $\lambda^g(t) = \eta + \sum_{T_n < t} \mu(t - T_n, X_n)$ of the ground process $N^g$ aggregates \emph{exogenous} activity (captured by the background rate $\eta$) and \emph{endogenous} excitation from the marked history (via the transfer function $\mu$). Note that each past event contributes an amount $\mu(t-T_n, X_n)$ that depends on its mark $X_n$. Thus, the excitation jump sizes of $\lambda^g(t)$ are generally random and mark-dependent, unlike in the unmarked classical Hawkes process (see discussion in Section \ref{sec:2.2}).
+Additionally, the \emph{i.i.d. marks} assumption specifies that marks are drawn independently from a fixed density $f$, independent of the event times. This simplifies the model by decoupling the mark-generating mechanism from the arrivals of event times, while still allowing marks to influence future intensities through $\mu$.
+
+\medskip
+\noindent
+Continuing the series of remarks started with Remark \ref{rem:cdf}, we now consider the simulation aspect for marked Hawkes processes with marks under a special regime. Roughly speaking, we simulate the associated ground counting process and marks separately, as mentioned in the following remark.
+\begin{remark}[Simulation-related advantage]\label{rem:iid-simulation}
+\medskip
+\noindent
+As noted in Laub et al. (2024) \cite{LLPT24}, when marks are completely independent of the ground (arrival) process, simulation becomes straightforward. One first simulates the arrival times of the Hawkes process (embedded in its ground counting process) using standard algorithms (see Chapter \ref{chap:6}), then independently simulates the marks from their specified distribution. Examples of such simulation approaches can be found in Møller and Rasmussen (2006) \cite{MR06} and Dassios and Zhao (2013) \cite{DZ13}. We discuss simulation under this independence structure in Chapter \ref{chap:7}.
+\end{remark}
+
+\begin{remark}[Some generalizations from Definition \ref{def:marked-HP}]
+\medskip
+\noindent
+The marked Hawkes process admits several generalizations. A nonlinear version can be defined via
+\[
+\lambda(t,x) = \Psi\left( \eta + \int_{(0,t)\times X} \mu(t-s,y) \, N(\mathrm{d}s,\mathrm{d}y) \right) f(x),
+\]
+where $\Psi: \mathbb{R} \to \mathbb{R}_+$ is a \emph{link function}, typically assumed to be Lipschitz continuous (see Brémaud and Massoulié (1996) \cite{BM96}).
+
+\medskip
+\noindent
+By allowing the transfer function $\mu$ to take values in $\mathbb{R}_- := (-\infty,0]$, the process can exhibit \emph{self-inhibitory} behavior (the opposite of self-exciting; see Section \ref{sec:2.2}). One may also relax the mark-time dependence structure; for instance, marks could be \emph{predictable} rather than \emph{unpredictable} (see Bielecki et al. (2023) \cite{BNJ23}).
+
+\medskip
+\noindent
+As mentioned at the beginning of Section \ref{sec:3.2}, the framework extends naturally to the multivariate case, where multiple marked components interact and exhibit \emph{mutually-exciting} behavior; see Embrechts et al. (2011) \cite{Emb11} for applications in finance.
+\hfill $\square$
+\end{remark}
+
+\chapter{Hawkes process from Immigration-birth viewpoint}\label{chap:4}
+While the Hawkes process (both marked and unmarked) can be understood in terms of its conditional intensity in Definitions \eqref{def:marked-HP} and \eqref{def:2.2.1},
+a Hawkes process can be viewed as a Poisson cluster process called the immigration-birth representation (originally shown by Hawkes and Oakes (1974) \cite{HO74}).
+This representation has been crucial in the studies of existence, uniqueness of Hawkes processes of interest as well as their asymptotic behaviors in the literature (e.g., Fierro et al. (2015) \cite{Fie15}, Mehrdad and Zhu (2014) \cite{MZ14}, Bacry et al. (2013) \cite{Bac13}), and these treatments fall outside of the scope of this thesis.
+
+\medskip
+\noindent
+We now give such version of  \emph{cluster-based} definition for a marked Hawkes process (where event times are on the whole real line) which is taken from Definition 1 in Moller and Rasmussen (2006) \cite{MR06}.
+
+\begin{definition}[\emph{Cluster-based} marked Hawkes process]\label{def:cluster-based}
+Let $({X},\mathcal{X})$ be a measurable mark space (see Section \ref{sec:3.1} for a discussion on necessary conditions for a mark space) equipped with a probability distribution $\mathbb{Q}$. A marked Hawkes process on $\mathbb{R} \times {X}$,
+\[
+N = ((T_n,X_n))_{n\ge 1}
+\]
+is a Poisson cluster process, defined as follows:
+
+\begin{enumerate}
+
+\item[(i)]
+The \emph{immigrant} event times form an (inhomogeneous) Poisson process on $\mathbb{R}$ with locally integrable intensity function $\eta(t)$. Each immigrant is assigned a mark independently with identical distribution $\mathbb{Q}$, and these marks are independent of the immigrants.
+
+\item[(ii)]
+Each immigrant $T_n$ generates a \emph{cluster} $C_n$ consisting of marked events of generations indexed by $i=0,1,2,\dots$ following a \emph{branching structure}:
+
+\begin{itemize}
+
+\item The immigrant $(T_n,X_n)$ is of generation $0$.
+
+\item Recursively, given generations $0,\dots,i$ in $C_n$, each event $(T_j,X_j)$ of generation $i$ generates an \emph{offspring process} of generation $i+1$ according to an (inhomogeneous) Poisson process $\Phi_j$ on $(T_j,\infty)$ with intensity $\mu(t-T_j,X_j)$ for $t>T_j$, where $\mu$ is the \emph{fertility rate} (or transfer function, see Definition \ref{def:marked-HP}).
+
+\item Each offspring $T_k$ in $\Phi_j$ receives a mark $X_k$ distributed according to $\mathbb{Q}$, independently of $T_k$ and all $(T_l, X_l)$ with $T_l < T_k$, i.e., independent of the \emph{marked history} $\mathcal{H}_{t-}=\{(T_n,X_n):T_n<t\}$ (see \eqref{eq:marked-history}). This property is known as \emph{unpredictable marks} in Daley and Vere-Jones (2003) \cite{DVJ03}; see Assumption \ref{assumption:mark-dependence}.
+
+\end{itemize}
+
+\item[(iii)]
+The clusters are independent conditional on the immigrants. Together with (ii), this implies that marks are i.i.d. (see Section \ref{sec:3.1}).
+
+\item[(iv)]
+The marked Hawkes process $N$ is defined as the union of all clusters:
+\[
+N = \bigcup_n C_n.
+\]
+
+\end{enumerate}\hfill $\square$
+\end{definition}
+
+\begin{remark}{(Generalizations from Definition \ref{def:cluster-based})}
+
+\begin{enumerate}[label=(\roman*),leftmargin=2.2em]
+\item
+Following the discussion in Section 3.3 of Laub et al. (2024) \cite{LLPT24}, unlike the standard Hawkes process where immigrants arrive as a Poisson process, the renewal Hawkes process (Wheatley et al., 2016) \cite{Whe16} permits cluster centers to be generated by a renewal process---i.e., a point process with i.i.d. interarrival times that may be non-exponentially distributed.
+\item
+In certain applications, such as seismology, the offspring behavior of a main shock may differ across generations---for instance, first-generation aftershocks often exhibit different patterns than those in later generations. Motivated by this, Fierro et al. (2015) \cite{Fie15} proposed a generalization of the Hawkes process as a cluster Poisson process wherein a sequence of excitation functions $(\mu_n)_{n\ge 0}$ is assigned, one per generation.
+\end{enumerate}
+\end{remark}
+
+\chapter{Hawkes process with exponentially decaying intensity}
+\label{chap:5}
+In this chapter, for simplicity, we consider the univariate, unmarked Hawkes process from Definition \ref{def:2.2.1} to derive the desired definitions and characteristics with ease, assuming the process exists and is well-defined on some underlying probability space. We also note that we frequently use interchangeable terminologies to refer to the same objects when the context is clear. For instance, we may refer to $T_n$ as an arrival, an event time, or a jump time. Similarly, the term \emph{self-excitation jump} (or simply \emph{jump}) denotes the increase in the conditional intensity process at time $T_n$.  Following the overview in Section 2.5 of Laub et al. (2024) \cite{LLPT24}, selecting the excitation function $\mu$—which admits the decomposition $\mu(t) = \vartheta \nu(t)$ with $\nu$ a probability density function—represents a crucial modeling decision when applying Hawkes processes. This flexibility enables practitioners to embed \emph{domain knowledge} or achieve specific \emph{desired characteristics}. In historical seismological applications, power-law kernels have traditionally been employed, as demonstrated by Utsu et al. (1995) \cite{Uts95}, where the density $\nu$ takes the form of a Pareto-type distribution. Despite its natural fit for earthquake modeling, this heavy-tailed specification often appears less suitable in other contexts. More recently, Lesage et al. (2022) \cite{Les22} adopted a gamma density for $\nu$ in insurance settings, thereby capturing a delayed excitation effect following claim arrivals—a feature particularly relevant for catastrophe modeling.
+
+\medskip
+\noindent
+Following the overview in Section 2.5 of Laub et al. (2024) \cite{LLPT24}, when the excitation function in Definition \ref{def:2.2.1} takes the \emph{exponentially decaying} form
+\begin{equation}\label{eq:exp-kernel}
+\mu(t)=\alpha e^{-\beta t},\qquad \alpha,\beta>0,
+\end{equation}
+the conditional intensity process becomes
+\begin{equation}
+    \lambda_t = \eta + \sum_{T_n < t} \alpha e^{-\beta(t-T_n)}, \qquad t\ge0.\label{eq:usual-exp-intensity}
+\end{equation}
+This specification is widely known as a Markovian Hawkes process (see Oakes (1975) \cite{Oak75} for the original work on Markovian self-exciting processes) and remains by far the most prevalent choice in the literature.
+
+\medskip
+\noindent
+The constants $\alpha$ and $\beta$ have the following interpretation: along a sample path of the intensity process, each new arrival of event triggers an immediate upward jump in the intensity by a constant \emph{self-exciting jump} of size $\alpha$, reflecting the self-exciting mechanism. Subsequently, the contribution of that event fades gradually, following an exponential decay governed by the constant \emph{exponential decay rate} $\beta$ toward the constant \emph{reversion level} $\eta$. Thus, between consecutive jump times (or arrival times), the intensity $\lambda$ itself evolves as a deterministic exponential function decaying to $\eta$, as illustrated in Figure \ref{fig:1}.
+More precisely, given the history up to $T_n$, for $T_n < t < T_{n+1}$, the intensity from Equation \eqref{eq:usual-exp-intensity} satisfies (cf. Section 2.5 of Laub et al. (2024) \cite{LLPT24}):
+\begin{equation}\label{eq:exp-recursion}
+\lambda_t = \eta + \big(\lambda_{T_n^+} - \eta\big) e^{-\beta (t - T_n)}, \qquad
+\lambda_{T_n^+} = \lambda_{T_n^-} + \alpha,
+\end{equation}
+where $T_n^+$ and $T_n^-$ denote the times immediately after and before the event time $T_n$, respectively. The jump in intensity at the arrival time $T_n$ is captured by the right-hand relation, referred to as the \emph{change at arrival time} $T_n$ of the intensity $\lambda$. The equality $\lambda_{T_n^+} = \lambda_{T_n^-} + \alpha$ follows from the fact that the intensity is left-continuous with right limits.
+
+\medskip
+\noindent
+Equivalently, the conditional intensity from Equation \eqref{eq:usual-exp-intensity} satisfies the ordinary differential equation (ODE) along a sample path of $\lambda$:
+\begin{equation}\label{eq:ode}
+d\lambda_t = \beta(\eta - \lambda_t) \, dt, \qquad T_n < t < T_{n+1},
+\end{equation}
+with initial condition $\lambda_{T_n^+} = \lambda_{T_n^-} + \alpha$.
+
+\medskip
+\noindent
+This paragraph on the Markovian nature of the process bases on Section 2.5 of Laub et al. (2024) \cite{LLPT24}. The pair $(N, \lambda)$ constitutes a Markov process\footnote{In informal terms, this \emph{memoryless} property means that to predict the future behavior of the system, we need only its current state—the current intensity and event count—rather than the full history of past events.} (see Remark 1.22 of Liniger (2009) \cite{Lin09}). This reduction to a Markovian framework is precisely what renders the exponential class so appealing: the recurrence relation in Equation \eqref{eq:exp-recursion} yields a finite-dimensional state variable—the current intensity—which can be updated recursively at event times without storing the complete event history. Consequently, this specification streamlines simulation, likelihood evaluation, and statistical inference, and enables highly efficient evaluation of $\lambda(\cdot)$ across arbitrary collections of time points.
+
+\medskip
+\noindent
+We now provide a formal definition of the (univariate, unmarked) Hawkes process with exponentially decaying intensity, which incorporates the properties discussed above and additional properties to follow. The definition is adapted from Definition 2.6 in Laub et al. (2024) \cite{LLPT24} and is evidently a specialized version of Definition \ref{def:2.2.1}.
+\begin{definition}\label{def:exp-HP}
+A linear, univariate, unmarked Hawkes process with exponentially decaying intensity is a counting process $N$ on $\mathbb{R}_+$ whose $(\mathcal{H}_{t-})$-conditional intensity process has the form:
+\begin{equation}\label{eq:exp-intensity}
+\lambda_t = \eta + (\lambda_0 - \eta) e^{-\beta t} + \sum_{T_n < t} \alpha e^{-\beta(t-T_n)}, \qquad t\ge0,
+\end{equation}
+where:
+\begin{enumerate}
+    \item $\mathcal{H}_{t-}$ represents the history of $N$ up to, but not including, time $t$.
+    \item $\eta > 0$ is the constant reversion level;
+    \item $\lambda_0 > 0$ is the initial intensity at time $t=0$;
+    \item $\beta > 0$ is the constant rate of exponential decay;
+    \item $\alpha > 0$ is the constant size of self-excited jumps.
+\end{enumerate}
+\hfill $\square$
+\end{definition}
+\noindent
+The interpretation of the parameters $\eta$, $\beta$, $\alpha$ remains the same as earlier in this section. The conditional intensity from Equation \eqref{eq:exp-intensity} satisfies the stochastic differential equation\footnote{In differential form, this representation highlights how the intensity evolves continuously between jumps (through the drift term) and discontinuously at jump times (through the jump term). For a formal treatment, see Last and Brandt (1995) \cite{LB95}. Although informally, we can view this as an ODE for a typical path of the conditional intensity; see Equation \eqref{eq:ode}.} (see Laub et al. (2022) \cite{LLT22}):
+\begin{equation}
+d\lambda_t = \beta(\eta - \lambda_t) \, dt + \alpha \, dN(t), \qquad t \geq 0,
+\end{equation}
+with intensity at $t=0$ having the starting value $\lambda_0$, which need not equal the rate $\eta$. This is a key distinction from the classical Hawkes process in Section \ref{sec:2.2}. The earlier Definition \ref{def:2.2.1} assumes a clear starting time $t = 0$ with continuous observation from that point onward. In practice, however, many real-world processes lack such a clean origin; records often begin after the process is already active. The Markov property in the definition above handles this naturally: $t = 0$ simply marks when observation starts, with initial intensity $\lambda_0$, not when the process truly began.
+
+\medskip
+\noindent
+We continue the series of Remarks on the characterization of point process via its conditional intensity, and now our point process of interest is the Hawkes process in Definition \ref{def:exp-HP}.
+\begin{remark}\label{rem:exp-cdf}(On the analytical form of the conditional distribution of the next arrival time under exponential excitation).
+\medskip
+\noindent
+Returning to Remark \ref{rem:cdf} for a general point process, the conditional cumulative distribution function of the \((n+1)\)-th inter-arrival time \(S_{n+1}\) given \(T_n\) for the Hawkes process with exponentially decaying intensity (from Definition \ref{def:exp-HP}) is given by:
+\[
+F_{S_{n+1}}(s) = 1 - \exp\left(-\int_0^s \lambda_{T_n^+ + v} \, dv\right)
+= 1 - \exp\left( -\left(\lambda_{T_n^+} - \eta\right)\frac{1 - e^{-\beta s}}{\beta} - \eta s \right),\quad s\ge0,
+\]
+where the first equality follows from a standard change of variable, and the second uses the intensity dynamics from Equation \eqref{eq:exp-recursion} (cf. Dassios and Zhao (2013) \cite{DZ13}).
+
+\noindent
+This explicit form facilitates simulation of the Hawkes process with exponential decay, as one can apply the \emph{inverse transform method} to generate \(S_{n+1}\) and consequently \(T_{n+1}\) (see Chapter \ref{chap:7}). However, naive numerical inversion can be computationally expensive (see Dassios and Zhao (2013) \cite{DZ13}).
+\hfill $\square$
+\end{remark}
+
+\part{Simulation}
+\label{part:simulation}
+
+\chapter{Simulation landscape for Hawkes processes}
+\label{chap:6}
+This chapter provides a brief overview of Hawkes process simulation, focusing on the most widely used methods. Following Section 2.8 of Laub et al. (2024) \cite{LLPT24}, the standard algorithm for simulating an (unmarked) Hawkes process is \textit{Ogata's modified thinning algorithm} (by Ogata (1981) \cite{Oga81}), which builds upon the thinning method originally developed by Lewis and Shedler (1979) \cite{LS79} for general point processes. Thinning algorithms rely on the conditional intensity function $\lambda_t$ to generate successive inter-arrival times (see relation to Remark \ref{rem:cdf}) through an acceptance-rejection procedure. This method requires us to supply upper bounds for $\lambda_t$ between jumps. As noted by Laub et al. (2024) \cite{LLPT24}, these bounds are typically straightforward to obtain for linear Hawkes processes; for example, in the case of exponentially decaying intensity Hawkes process, we have $\lambda_t \leq \lambda_{T_n} + \alpha$ for $T_n \leq t < T_{n+1}$. Turning to marked Hawkes processes, Daley and Vere-Jones (2007) \cite{DVJ07} extended the Lewis–Shedler thinning algorithm (Lewis and Shedler (1979)) to accommodate marks. Joseph and Jain (2024) \cite{JJ24} present this extension as a sequential procedure (see Remark \ref{rem:iid-simulation}): the next event time is simulated from the ground conditional intensity $\lambda^g(t)$, after which the associated mark is drawn from the mark density $f(x)$.
+The Hawkes process simulation methods described above are typically classified as \emph{intensity-based}.
+
+\medskip
+\noindent
+An alternative class of methods, inspired by the immigration–birth representation, also appears in the literature; these are commonly referred to as \emph{cluster-based simulations}, where immigrants and offspring are simulated recursively. Notable contributions in this direction include Møller and Rasmussen \cite{MR05, MR06}, who proposed both perfect and approximate simulation algorithms for marked Hawkes processes. The term \emph{perfect simulation} here refers specifically to methods that correctly account for the infinite past and typically require sampling under certain stationarity conditions, while \emph{approximate simulation} considers only a finite past.
+
+\medskip
+\noindent
+As is typical for Hawkes processes, the exponentially-decaying variant admits a substantially more efficient simulation algorithm than the general case. Dassios and Zhao (2013) \cite{DZ13} developed an \emph{exact simulation} method that generates Hawkes processes by sampling interarrival times directly from their analytic distribution functions, thereby circumventing both numerical inversion and explicit intensity path simulation. As stated in Dassios and Zhao (2013) \cite{DZ13}, their approach offers several practical advantages: straightforward implementation, natural extension to higher dimensions, and the ability to simulate from arbitrary starting times with either fixed initial intensities or prescribed initial distributions. The method imposes no stationarity requirement—processes with unbounded intensities over finite horizons remain simulable—yet accommodates stationary intensities with minimal modification. By avoiding discretization altogether, the algorithm eliminates discretization bias entirely. We examine a simple version of this method in detail for the exponentially-decaying Hawkes process in Chapter \ref{chap:7}.
+
+\chapter{Exact simulation of exponentially decaying intensity Hawkes processes}
+\label{chap:7}
+
+In this chapter, we present a treatment of the exact simulation algorithm developed by Dassios and Zhao (2013) \cite{DZ13} for the univariate case of Hawkes processes with exponentially decaying intensity. We focus on the basic case considered in Dassios and Zhao (2013) \cite{DZ13} for simplicity and primarily to illustrate the mathematical soundness of the algorithm; for extensions and generalizations, we refer the reader to the original work Dassios and Zhao (2013) \cite{DZ13}.
+
+\medskip
+\noindent
+We now state the definition of the exponentially decaying intensity Hawkes process under consideration, which follows Definition 2.1 in Dassios and Zhao (2013) \cite{DZ13}. This formulation is originally based on a minor generalization of the Markovian self-exciting process introduced by Oakes (1975) \cite{Oak75}. The introduction of randomness in the self-excitation jump sizes of the intensity provides greater flexibility for measuring self-exciting effects (see Dassios and Zhao (2013) \cite{DZ13}). With some adaptation, the definition is as follows:
+
+\begin{definition}\label{def:random-jump-exp-HP}
+A univariate Hawkes process with exponentially decaying intensity and random self-excitation jump sizes taking values in $\mathbb{R}_+$ is a counting process $N$ on $\mathbb{R}_+$ whose ($\mathcal{H}_{t-}$)-conditional intensity process has the form:
+\begin{equation}\label{eq:exp-intensity-2}
+\lambda_t = \eta + (\lambda_0 - \eta) e^{-\beta t} + \sum_{T_n < t} X_n e^{-\beta(t-T_n)}, \qquad t\ge0.
+\end{equation}
+where:
+\begin{enumerate}
+    \item $\mathcal{H}_{t-}$ represents the history of $N$ up to, but not including, time $t$.
+    \item $\eta > 0$ is the constant reversion level;
+    \item $\lambda_0 > 0$ is the initial intensity at time $t=0$;
+    \item $\beta > 0$ is the constant rate of exponential decay;
+    \item $(X_n)_{n\ge 1}$ are the sizes of self-excited jumps, a sequence of i.i.d. positive random variables with common distribution function $F_X$ on $\mathbb{R}_+$;
+    \item $(T_n)_{n\ge 1}$ and $(X_n)_{n\ge 1}$ are assumed to be independent of each other. \hfill $\square$
+\end{enumerate}
+\end{definition}
+\medskip
+\noindent
+A few notes on the consistency of Definition \ref{def:random-jump-exp-HP} with the previous chapters. This version, which incorporates random jump sizes, stands in contrast to Definition \ref{def:exp-HP} which considered constant excitation jumps. One can view the random jump sizes $(X_n)_{n\ge 1}$ as i.i.d. \emph{marks} (see Section \ref{sec:3.2}); under this interpretation, the Hawkes process in Definition \ref{def:random-jump-exp-HP} corresponds to the ground counting process $N^g$ (hence associated point process) that records event times while ignoring the associated marks.
+
+\section{Algorithm}\label{sec:7.1}
+
+\begin{algorithm}
+\caption{(Algorithm 3.1 of Dassios and Zhao (2013) \cite{DZ13}) One-dimensional, random jump size Hawkes process with exponentially decaying intensity simulation algorithm}
+\label{alg:1}
+The simulation algorithm for one sample path of one-dimensional Hawkes process with exponentially decaying intensity $\left\{\left(N_t,\lambda_t\right)\right\}_{t\geq 0}$ conditional on $\lambda_0$ and $N_0 = 0$, with jump-size distribution function $X\sim F_X$ and $\bar{K}$ jump-times $\{T_1,T_2,\dots,T_{\bar{K}}\}$:
+
+\begin{enumerate}[leftmargin=*,label=\textbf{Step \arabic*.}]
+\item Set the initial conditions $T_0 = 0$, $\lambda_{T_0^-}=\lambda_{T_0^+} = \lambda_0 > \eta$, $N_0 = 0$ and $k\in \{0,1,2,\dots,\bar{K}-1\}$.
+
+\item Simulate the $(k+1)^{\text{th}}$ interarrival-time $S_{k+1}$ by
+\[
+S_{k+1} = S_{k+1}^{(1)} \wedge S_{k+1}^{(2)}, \quad D_{k+1}>0
+\]
+\[
+S_{k+1} = S_{k+1}^{(2)}, \quad D_{k+1}<0
+\]
+where
+\[
+D_{k+1} = 1 + \frac{\beta \ln U_1}{\lambda_{T_k^+} - \eta},\quad U_1\sim \mathrm{U}[0,1],
+\]
+and
+\[
+S_{k+1}^{(1)} = -\frac{1}{\beta}\ln D_{k+1},\quad S_{k+1}^{(2)} = -\frac{1}{\eta}\ln U_2,\quad U_2\sim \mathrm{U}[0,1].
+\]
+
+\item Record the $(k+1)^{\text{th}}$ jump-time $T_{k+1}$ in the intensity process $\lambda_t$ by
+\[
+T_{k+1} = T_k + S_{k+1}.
+\]
+
+\item Record the change at the jump-time $T_{k+1}$ in the intensity process $\lambda_t$ by
+\[
+\lambda_{T_{k+1}^+} = \lambda_{T_{k+1}^-} + X_{k+1},\quad X_{k+1}\sim F_X,
+\]
+where
+\[
+\lambda_{T_{k+1}^-} = \left(\lambda_{T_k^+} - \eta\right)e^{-\beta (T_{k+1} - T_k)} + \eta.
+\]
+
+\item Record the change at the jump-time $T_{k+1}$ in the point process $N_t$ by
+\[
+N_{T_{k+1}^+} = N_{T_{k+1}^-} + 1.
+\]
+\end{enumerate}
+\end{algorithm}
+
+\medskip
+\noindent
+The following discussion explains Algorithm \ref{alg:1} for simulating the Hawkes process with exponentially decaying intensity from Definition \ref{def:random-jump-exp-HP}, which is based on the proof of Algorithm 3.1 in Dassios and Zhao (2013) \cite{DZ13}. The simulation proceeds by first sampling the interarrival times exactly; once these are obtained, the remaining quantities follow immediately. Building on Remarks \ref{rem:cdf} and \ref{rem:exp-cdf} concerning the derivation of the explicit conditional cumulative distribution function for the \((k+1)\)-th interarrival time \(S_{k+1}\) given \(T_k\), we recall below:
+\begin{equation}\label{eq:S-cdf}
+F_{S_{k+1}}(s) = 1 - \exp\left(-\left(\lambda_{T_k^+} - \eta\right)\frac{1 - e^{-\beta s}}{\beta} - \eta s\right).
+\end{equation}
+
+\noindent
+From this, one might apply the standard \emph{inverse transform method}\footnote{Intuitively, this works because $F_{S_{k+1}}(\cdot)$ maps interarrival times—which live in $[0,\infty)$—to probabilities in $[0,1]$, and its inverse takes $U$, which is uniformly distributed on $[0,1]$, and maps it back. Hence, loosely speaking, $F_{S_{k+1}}^{-1}(U)$ has the same distribution as $S_{k+1}$.} to simulate $S_{k+1}$ by setting
+\[
+S_{k+1} \stackrel{D}{=} F_{S_{k+1}}^{-1}(U), \quad U \sim \mathrm{U}[0,1],
+\]
+i.e., generating $S_{k+1}$ as a composition of the inverse (conditional) cumulative distribution function $F_{S_{k+1}}^{-1}(\cdot)$ and a uniformly distributed random variable $U$ on $[0, 1]$. However, this direct approach can incur significant numerical error.
+
+\medskip
+\noindent
+Instead of inverting \( F_{S_{k+1}}(\cdot) \) from Equation \eqref{eq:S-cdf} directly, Dassios and Zhao (2013) \cite{DZ13} applied a composition method that decomposes \( S_{k+1} \) into two simpler and independent random variables \( S_{k+1}^{(1)} \) and \( S_{k+1}^{(2)} \). Following the note in Laub et al. (2022) \cite{LLT22}, this composition method was first applied to simulate distributions of the form in Equation \eqref{eq:S-cdf} by Pai (1997) \cite{Pai97}. Specifically, the inter-arrival times of a Hawkes process with exponentially decaying intensity not only admit a standard immigration-birth (branching) interpretation (see Chapter \ref{chap:4}) but also follow a Gompertz–Makeham distribution (Gompertz (1825) and Makeham (1860))—a distribution originally developed to model human lifespan.
+
+\medskip
+\noindent
+We now provide an interpretation of the decomposition presented in Algorithm \ref{alg:1}, which splits the \((k+1)\)-th interarrival time \(S_{k+1}\)—conditional on the history up to the last arrival \(T_k\)—into two independent random variables \(S_{k+1}^{(1)}\) and \(S_{k+1}^{(2)}\). While the mathematical soundness of the algorithm is established, the interpretation we offer has a certain drawback that will be addressed later in this section.
+\subsubsection*{Interpretation}
+The \emph{contagion/self-excitation component} \(S_{k+1}^{(1)}\) represents the time until the next \emph{offspring event} from the current cluster, capturing the self-exciting effect. Its survival function is:
+\[
+P\{S_{k+1}^{(1)} > s\} = \exp\left(-\left(\lambda_{T_k^+} - \eta\right)\frac{1 - e^{-\beta s}}{\beta}\right),
+\]
+and it can be simulated via the inverse transformation method\footnote{From Dassios and Zhao (2013), we have $F_{S_{k+1}^{(1)}}(s) = 1 - \exp\left(-\left(\lambda_{T_k^+} - \eta\right)\frac{1 - e^{-\beta s}}{\beta}\right)
+$. Note that $F(s)=1-e^{-g(s)}$. Rather than inverting $F$, we can exploit the fact that if $U\sim U[0,1]$, then $1-U\sim U[0,1]$. Setting $e^{-g(s)} = U$ (instead of $1-U$) gives $g(s) = -\ln U$, which is easier to solve for $s$.}:
+\[
+S_{k+1}^{(1)} \stackrel{D}{=} -\frac{1}{\beta} \ln\left(1 + \frac{\beta \ln U_1}{\lambda_{T_k^+} - \eta}\right), \quad U_1 \sim U[0,1],
+\]
+subject to the condition that the argument of the logarithm $D_{k+1} := 1 + \frac{\beta \ln U_1}{\lambda_{T_k^+} - \eta}$ is positive.
+
+\noindent
+As shown in Dassios and Zhao (2013) \cite{DZ13}, this is a \emph{defective} random variable, implying that there is a positive probability that it is infinite, or the offspring will never come (see a note in Remark \ref{rem:cdf}):
+\[
+P(S_{k+1}^{(1)} = \infty) = \exp\left( -\frac{\lambda_{T_k^+} - \eta}{\beta} \right).
+\]
+\medskip
+\noindent
+The \emph{Poisson component} \(S_{k+1}^{(2)}\) represents the time until the next \emph{immigrant event} from the baseline homogeneous Poisson process\footnote{Meanwhile, from Definition 2.2 of Dassios and Zhao (2013) \cite{DZ13}, immigrants arrive according to an inhomogeneous Poisson of rate of $\eta+ (\lambda_0 -\eta)e^{-\beta t}$}. It is exponentially distributed with constant rate \(\eta\), that is:
+\[
+P\{S_{k+1}^{(2)} > s\} = e^{-\eta s}.
+\]
+Its simulation via inverse transformation method is simply:
+\[
+S_{k+1}^{(2)} \stackrel{D}{=} -\frac{1}{\eta} \ln U_2, \quad U_2 \sim U[0,1].
+\]
+\noindent
+At this point, the two newly constructed random variables are independent by construction since they are measurable functions of i.i.d random variables $U_1$ and $U_2$. In Algorithm \ref{alg:1}, we construct the next inter-arrival time as the minimum of these two independent variables; in other words, these two independent causes compete to trigger the next event:
+\[
+S_{k+1} = \min\left\{S_{k+1}^{(1)}, S_{k+1}^{(2)}\right\}.
+\]
+\noindent
+This construction is justified by the factorization:
+\[
+\begin{aligned}
+P\{S_{k+1} > s\} &= \exp\left(-\left(\lambda_{T_k^+} - \eta\right)\frac{1 - e^{-\beta s}}{\beta}\right) \times e^{-\eta s} \\
+&= P\{S_{k+1}^{(1)} > s\} \times P\{S_{k+1}^{(2)} > s\} \\
+&= P\left\{\min\left(S_{k+1}^{(1)}, S_{k+1}^{(2)}\right) > s\right\}.
+\end{aligned}
+\]
+
+\noindent
+Hence, the random variable defined as \(\min(S_{k+1}^{(1)}, S_{k+1}^{(2)})\) has the same distribution as the true Hawkes interarrival time. The interpretation is that the winning cause determines the event type: if \(S_{k+1}^{(1)} < S_{k+1}^{(2)}\), the next event is an offspring; if \(S_{k+1}^{(2)} < S_{k+1}^{(1)}\), the next event is an immigrant; if \(S_{k+1}^{(1)} = \infty\), the next event is necessarily an immigrant. The minimum operator is intuitively understood as the Hawkes process being a \emph{superposition} of processes across generations—i.e., events are registered in the cumulative counting process in the order they occur, irrespective of their generation, i.e. event types. Note that the interpretation we have given serves as intuition rather than a statement to be taken with mathematical rigor.
+
+\medskip
+\noindent
+We now show a brief connection to the Gompertz--Makeham distribution. The survival function of \(S_{k+1}\) matches the Gompertz--Makeham survival function:
+\[
+S_{\mathrm{GM}}(t) = \exp\left( -\alpha t - \frac{\beta}{\gamma}(e^{\gamma t} - 1) \right)
+\]
+with parameters \(\alpha = \eta\), \(\beta = \lambda_{T_k^+} - \eta\), \(\gamma = -\beta\). Thus, conditionally on the history, the next interarrival time of a Hawkes process with exponentially decaying intensity follows a Gompertz--Makeham distribution with \emph{negative aging parameter} \cite{Gom25,Mak60} (cf. Laub et al. (2022) \cite{LLT22}).
+
+\medskip
+\noindent
+Then, the remaining quantities—such as $T_{k+1}$, $\lambda_{T_{k+1}^-}$, and $\lambda_{T_{k+1}^+}$—can be simulated according to the steps shown in Algorithm \ref{alg:1}. In particular, the values at the jump time follow the dynamics in Equation \eqref{eq:exp-recursion}, but now with random jump sizes drawn from the distribution function $F_X$ rather than constant jumps. Simulating $T_{k+1}$ is immediate once $S_{k+1}$ is obtained. Additionally, if one wishes to simulate the associated marked Hawkes process (i.e., a marked point process from Section \ref{sec:3.1}, rather than an unmarked counting process), the associated mark $X_{k+1}$ can be assigned separately; see Remark \ref{rem:iid-simulation}.
+
+\section{A numerical experiment}\label{sec:7.2}
+In this section, we reproduce the numerical experiment following the exact procedure presented in Chapter 4 of Dassios and Zhao (2013) \cite{DZ13} using the simulation algorithm \ref{alg:1} (taken from Algorithm 3.1 in \cite{DZ13}). The objective is twofold:
+(i) to simulate and provide an interpretative demonstration of the self-exciting dynamics of the Hawkes process with exponentially decaying intensity and random jump sizes;
+(ii) to re-verify the Algorithm \ref{alg:1} by comparing empirical estimates against the theoretical moment formulas from Proposition 2.3 in Dassios and Zhao (2013) \cite{DZ13} through large-scale Monte Carlo\footnote{Monte Carlo simulation refers to a computational technique that uses repeated random sampling to estimate numerical quantities. In our context, it simulates many possible realizations of a Hawkes process and aggregates the results to approximate statistical properties such as means, variances, or probabilities.} simulation.
+
+\medskip
+\noindent
+We begin by specifying the Hawkes process $(N,\lambda)$
+\footnote{We follow the convention of Dassios and Zhao (2013) \cite{DZ13} in denoting the Hawkes process by the pair $(N,\lambda)$.}
+as introduced in Definition~\ref{def:random-jump-exp-HP}.
+\subsubsection*{Model Specification}
+Following Chapter 4 in Dassios and Zhao (2013) \cite{DZ13}, we assume that the self-excited jump sizes $\{X_n\}_{n\ge1}$ are i.i.d. with exponential density
+\[
+g(x)=\alpha e^{-\alpha x}, \qquad x>0,\ \alpha>0.
+\]
+The parameter configuration is chosen as
+\[
+(\eta,\beta;\alpha;\lambda_0)=(0.9,1.0;1.2;0.9).
+\]
+The stability and moment conditions required in Dassios and Zhao (2013) \cite{DZ13} are satisfied for this parameter choice; we omit the explicit verification and discussion on them here and refer the reader to \cite{DZ13} for details.
+
+\medskip
+\noindent
+Using Algorithm~\ref{alg:1}, we generated a single realisation of the specified model.
+The theoretical conditional expectations $\mathbb{E}[N_t \mid \lambda_0]$ and
+$\mathbb{E}[\lambda_t \mid \lambda_0]$, derived in Proposition~2.3 of
+Dassios and Zhao (2013) \cite{DZ13}, were also computed numerically for comparison.
+All simulations were carried out in Python using standard scientific computing libraries, and all figures and tables were generated programmatically to ensure reproducibility.
+
+\subsubsection*{One Simulated Sample Path}
+
+Figure~\ref{fig:onepath} displays one simulated trajectory of
+$(N,\lambda)$ over the time horizon $T=100$, generated using
+Algorithm~\ref{alg:1}. The resulting sample path clearly illustrates
+the right-continuity of the Hawkes counting process $N$ and the
+left-continuity of the associated conditional intensity process
+$\lambda$, together with the characteristic self-excitation mechanism:
+each arrival induces an upward jump in the intensity followed by
+exponential decay between successive events. This simulated jump-and-decay illustration is consistent with the theoretical properties discussed in Section~\ref{sec:2.2} and Chapter~\ref{chap:5}.
+
+\medskip
+\noindent
+Within Figure~\ref{fig:onepath}, the top panel presents a histogram of event arrivals across time bins. Arrivals cluster in visible bursts — a signature of the self-exciting mechanism. The middle panel plots the counting process $N$ against $\mathbb{E}[N(\cdot) \mid \lambda_0]$; the simulated path fluctuates around the mean but shows periods of accelerated growth corresponding to the clusters above. The bottom panel shows the intensity process $\lambda$ and $\mathbb{E}[\lambda(\cdot) \mid \lambda_0]$, where the most pronounced spikes in intensity correspond exactly to the densest clusters of arrivals visible in the top panel. \begin{figure}[H]
+    \centering
+    \IfFileExists{good_fig2_paper_style.png}{%
+    \includegraphics[width=\linewidth]{good_fig2_paper_style.png}%
+}{%
+    \fbox{\parbox{0.85\linewidth}{\centering Missing figure: \texttt{good\_fig2\_paper\_style.png}}}%
+}
+    \caption{One Simulated Sample Path of Hawkes process $(N,\lambda)$}
+    \label{fig:onepath}
+\end{figure}
+\noindent
+The clustering effect observed in the first panel of Figure~\ref{fig:onepath} cannot be reproduced by classical Poisson models. In a Poisson process, increments are independent and the intensity is deterministic; hence, the occurrence of an event does not influence the probability of future events. In contrast, under the (exponential) Hawkes specification each arrival increases the future intensity, generating contagion and event clustering. From a modelling perspective, as emphasised by Dassios and Zhao (2013) \cite{DZ13}, this self-exciting structure is particularly relevant in, for example, high-frequency financial markets, where trades or price movements tend to trigger further activity in short time intervals.
+\subsubsection*{Comparison between Theoretical Formulas and Simulation Results}
+To numerically (re-)verify Algorithm 3.1 in Dassios and Zhao (2013) \cite{DZ13}, we perform Monte Carlo simulations with $M=100{,}000$ independent sample paths. For each $T = 1,\dots,20$, we compute empirical estimates of
+\[
+\mathbb{E}[\lambda_T \mid \lambda_0], \quad
+\mathrm{Var}(\lambda_T \mid \lambda_0), \quad
+\mathbb{E}[N_T \mid \lambda_0],
+\]
+and compare them with the corresponding theoretical values derived from Proposition~2.3 in \cite{DZ13}. The results are plotted in Figure~\ref{fig:momentcomp}, and the relative error percentages with respect to the exact theoretical values are shown in Table~\ref{tab:moment}.
+\begin{figure}
+    \centering
+    \IfFileExists{good_fig3_T20_M100000_integer.png}{%
+    \includegraphics[width=1\linewidth]{good_fig3_T20_M100000_integer.png}%
+}{%
+    \fbox{\parbox{0.85\linewidth}{\centering Missing figure: \texttt{good\_fig3\_T20\_M100000\_integer.png}}}%
+}
+    \caption{Comparison between Exact and Simulated Expectation and Variance of $N_t$
+and $\lambda_t$}
+    \label{fig:momentcomp}
+\end{figure}
+
+\medskip
+\noindent
+We present a short error analysis from which several observations can be made. First, the empirical estimates closely match theoretical values across all $T$, with relative errors typically below $0.1\%$, confirming the correctness and numerical stability of the Algorithm~\ref{alg:1}. Second, errors do not systematically increase with time, indicating that the algorithm does not accumulate discretization bias — it is based on exact arrival time simulation rather than time discretization (see Dassios and Zhao (2013) and the discussion in Section~\ref{sec:7.1}). Finally, the agreement for both first and second moments demonstrates that the algorithm correctly captures not only mean behavior but also second-order fluctuations. Overall, this numerical evidence, replicating the experiments in Chapter~4 of Dassios and Zhao (2013) \cite{DZ13}, successfully (re-)verifies the proposed algorithm.
+\begin{table}[H]
+\centering
+\caption{Comparison between Theoretical Formulas and Simulation Results
+($T=1,\dots,20$, $M=100{,}000$)}
+\label{tab:moment}
+\begin{tabular}{c|ccc|ccc|ccc}
+\hline
+ & \multicolumn{3}{c|}{$\mathbb{E}[\lambda_T \mid \lambda_0]$}
+ & \multicolumn{3}{c|}{$\mathrm{Var}(\lambda_T \mid \lambda_0)$}
+ & \multicolumn{3}{c}{$\mathbb{E}[N_T \mid \lambda_0]$} \\
+\hline
+$T$
+& Theory & Sim. & Err(\%)
+& Theory & Sim. & Err(\%)
+& Theory & Sim. & Err(\%) \\
+\hline
+1  & 0.9000 & 0.9003 & 0.0333 & 0.7500 & 0.7488 & -0.1600 & 0.9000 & 0.8994 & -0.0667 \\
+2  & 0.9605 & 0.9601 & -0.0417 & 0.7350 & 0.7364 & 0.1905  & 1.8450 & 1.8441 & -0.0488 \\
+3  & 1.0160 & 1.0156 & -0.0394 & 0.7215 & 0.7202 & -0.1801 & 2.8260 & 2.8255 & -0.0177 \\
+4  & 1.0669 & 1.0673 & 0.0375  & 0.7094 & 0.7082 & -0.1692 & 3.8430 & 3.8422 & -0.0208 \\
+5  & 1.1136 & 1.1131 & -0.0449 & 0.6985 & 0.6991 & 0.0859  & 4.8960 & 4.8951 & -0.0184 \\
+6  & 1.1565 & 1.1562 & -0.0259 & 0.6887 & 0.6879 & -0.1162 & 5.9850 & 5.9844 & -0.0100 \\
+7  & 1.1959 & 1.1956 & -0.0251 & 0.6798 & 0.6804 & 0.0883  & 7.1100 & 7.1096 & -0.0056 \\
+8  & 1.2322 & 1.2325 & 0.0243  & 0.6717 & 0.6723 & 0.0893  & 8.2710 & 8.2704 & -0.0073 \\
+9  & 1.2656 & 1.2653 & -0.0237 & 0.6643 & 0.6638 & -0.0753 & 9.4680 & 9.4671 & -0.0095 \\
+10 & 1.2964 & 1.2967 & 0.0231  & 0.6576 & 0.6569 & -0.1065 & 10.7010& 10.7001& -0.0084 \\
+11 & 1.3248 & 1.3246 & -0.0151 & 0.6514 & 0.6509 & -0.0767 & 11.9700& 11.9692& -0.0067 \\
+12 & 1.3511 & 1.3514 & 0.0222  & 0.6458 & 0.6452 & -0.0929 & 13.2750& 13.2743& -0.0053 \\
+13 & 1.3753 & 1.3750 & -0.0218 & 0.6406 & 0.6412 & 0.0937  & 14.6160& 14.6153& -0.0048 \\
+14 & 1.3977 & 1.3979 & 0.0143  & 0.6359 & 0.6353 & -0.0944 & 15.9930& 15.9921& -0.0056 \\
+15 & 1.4184 & 1.4181 & -0.0212 & 0.6315 & 0.6309 & -0.0950 & 17.4060& 17.4053& -0.0040 \\
+16 & 1.4376 & 1.4379 & 0.0209  & 0.6274 & 0.6279 & 0.0797  & 18.8550& 18.8542& -0.0042 \\
+17 & 1.4554 & 1.4552 & -0.0137 & 0.6237 & 0.6232 & -0.0802 & 20.3400& 20.3394& -0.0029 \\
+18 & 1.4719 & 1.4721 & 0.0136  & 0.6202 & 0.6198 & -0.0645 & 21.8610& 21.8602& -0.0037 \\
+19 & 1.4872 & 1.4870 & -0.0134 & 0.6170 & 0.6165 & -0.0810 & 23.4180& 23.4173& -0.0030 \\
+20 & 1.5014 & 1.5017 & 0.0200  & 0.6140 & 0.6135 & -0.0814 & 25.0110& 25.0103& -0.0028 \\
+\hline
+\end{tabular}
+\end{table}
+
+\chapter{Conclusion}\label{chap:8}
+This thesis has provided an introduction to the theory and simulation of Hawkes processes, synthesizing foundational results from the literature into a unified and accessible exposition. We have traced the development from basic point process concepts through to simulation methodologies, with particular emphasis on the exponentially decaying intensity variant that occupies a central place in both theoretical analysis and practical applications.
+
+\medskip
+\medskip
+\noindent
+We begin by summarizing the main contributions of this work. In Part I, we established the theoretical foundations necessary for understanding Hawkes processes. Chapter 2 introduced the fundamental concepts of point processes and conditional intensity, culminating in the definition of the classical univariate Hawkes process. The self-exciting property---the core feature that distinguishes Hawkes processes from simpler Poisson models---was illustrated through simulated sample paths and discussed in the context of applications ranging from seismology to finance.
+
+\medskip
+\noindent
+Chapter 3 extended this framework to marked Hawkes processes, where each event carries an associated random mark. We examined different mark dependence structures, with particular attention to the i.i.d. marks assumption that simplifies both analysis and simulation. The connection between marked processes and their ground counting processes was established, providing a bridge between the marked and unmarked formulations.
+
+\medskip
+\noindent
+Chapter 4 explored the immigration--birth representation, revealing the underlying branching structure that makes Hawkes processes amenable to cluster-based interpretation and simulation. This viewpoint, originally due to Hawkes and Oakes (1974) \cite{HO74}, provides intuitive understanding of process stability through the branching ratio and serves as the foundation for many theoretical results.
+
+\medskip
+\noindent
+Chapter 5 focused on the exponentially decaying intensity variant, which enjoys a Markovian structure that renders the process analytically tractable. We derived the recursive intensity dynamics and the explicit form of inter-arrival distributions. This special case remains the most widely used in practice due to its computational convenience.
+
+\medskip
+\noindent
+In Part II, we turned to simulation methodology. Chapter 6 provided an overview of the simulation landscape, surveying both intensity-based thinning algorithms and cluster-based approaches. The relative merits of each method were discussed, with attention to the trade-offs between generality, efficiency, and accuracy.
+
+\medskip
+\noindent
+Chapter 7 presented a detailed treatment of the exact simulation algorithm developed by Dassios and Zhao \cite{DZ13} for Hawkes processes with exponentially decaying intensity. We explained the composition method that decomposes interarrival times into independent components, circumventing numerical inversion and eliminating discretization error. Through extensive Monte Carlo experiments, we verified the algorithm's correctness by comparing empirical moment estimates with theoretical values. The numerical results demonstrated excellent agreement, confirming both the mathematical soundness of the algorithm and its faithful implementation.
+
+\medskip
+\medskip
+\noindent
+Turning to limitations and future directions, while this thesis has focused on foundational theory and basic simulation methods, several important directions remain for future investigation. First, the multivariate extension of Hawkes processes, where multiple interacting event streams mutually excite one another, represents a natural and practically important generalization. The exact simulation algorithm of Dassios and Zhao (2013) \cite{DZ13} extends to higher dimensions, but a thorough treatment of multivariate simulation and its computational challenges would complement the present work.
+
+\medskip
+\noindent
+Second, while this thesis has considered deterministic model parameters, a promising direction involves allowing the components themselves to be stochastic processes. Recent work by Bielecki et al. (2023) \cite{BNJ23} has developed a generalized framework where the baseline intensity and excitation functions can themselves be stochastic processes, enabling the modeling of more complex phenomena such as regime-switching behavior, stochastic volatility effects in financial applications, or randomly varying background rates in seismology. This generalization substantially increases model flexibility but introduces significant theoretical and computational challenges, particularly regarding existence conditions, stability analysis, and simulation methodology.
+
+\medskip
+\noindent
+Third, this thesis has deliberately omitted a detailed treatment of asymptotic behavior results, which represent a rich and technically demanding area of Hawkes process theory. These include law of large numbers, central limit theorems, and large deviation principles for various statistics of Hawkes processes. Foundational work by Bacry et al. (2013) \cite{Bac13} established limit theorems for multivariate Hawkes processes and their applications to financial statistics, while Karabash and Zhu (2015) \cite{KZ15} derived limit theorems specifically for marked Hawkes processes with applications to risk modeling. These results are essential for understanding the long-run behavior of Hawkes processes, constructing confidence intervals, and developing statistical inference procedures, but their technical complexity places them beyond the scope of the present introductory treatment.
+
+\medskip
+\noindent
+Fourth, the development of statistically efficient inference methods for these more general specifications remains an open challenge. While likelihood-based methods exist for standard Hawkes processes, the introduction of stochastic components typically renders likelihood functions intractable, necessitating the development of sophisticated estimation techniques such as approximate Bayesian computation, particle filtering, or variational inference.
+
+\medskip
+\noindent
+Finally, the application of these generalized frameworks to emerging domains---such as social network analysis, high-frequency cryptocurrency markets, and infectious disease modeling with time-varying transmission rates---offers fertile ground for future work. Each new application brings unique challenges in model specification, parameter interpretation, and computational implementation, ensuring that the Hawkes process framework will continue to evolve and find new uses.
+
+\medskip
+\medskip
+\noindent
+In conclusion, the Hawkes process framework, now more than five decades old, continues to find new applications and inspire theoretical developments. Its appeal lies in the elegant balance between mathematical tractability and empirical relevance: the self-exciting mechanism captures genuine phenomena observed across diverse fields, while the underlying branching structure admits rigorous analysis. The exponentially decaying intensity variant, in particular, combines analytical convenience with computational efficiency, making it an attractive choice for practitioners. This thesis has aimed to lower the barrier to entry for researchers and practitioners seeking to understand and implement Hawkes processes. By presenting the material in a unified, accessible manner, we hope to have provided both the theoretical understanding and practical tools necessary for confident application of these versatile models. As the field continues to evolve, the foundational concepts presented here will remain essential for navigating the rich landscape of Hawkes process theory and methodology.
+
+\clearpage
+\addcontentsline{toc}{chapter}{Bibliography}
+\begin{thebibliography}{99}
+
+\bibitem{AH16}
+A{\"i}t-Sahalia, Y. and Hurd, T. R. (2016).
+\newblock Portfolio choice in markets with contagion.
+\newblock \emph{Journal of Financial Econometrics}, 14(1):1--28.
+
+\bibitem{Bac13}
+Bacry, E., Delattre, S., Hoffmann, C., and Muzy, J.-F. (2013).
+\newblock Some limit theorems for {H}awkes processes and application to financial statistics.
+\newblock \emph{Stochastic Processes and their Applications}, 123(7):2475--2499.
+
+\bibitem{BNJ23}
+Bielecki, T. R., Jakubowski, J., and Niewelglowski, M. (2023).
+\newblock Multivariate Hawkes processes with simultaneous occurrence of excitation events coming from different sources.
+\newblock \emph{Stochastic Models}, 39(3):537--565.
+
+\bibitem{Bre81}
+Br\'emaud, P. (1981).
+\newblock \emph{Point Processes and Queues: Martingale Dynamics}.
+\newblock Springer, New York.
+
+\bibitem{BM96}
+Br{\'e}maud, P. and Massouli{\'e}, L. (1996).
+\newblock Stability of nonlinear hawkes processes.
+\newblock \emph{The Annals of Probability}, pages 1563--1588.
+
+\bibitem{Bre02}
+Br\'emaud, P., Nappo, G., and Torrisi, G. (2002).
+\newblock Rate of convergence to equilibrium of marked Hawkes processes.
+\newblock \emph{Journal of Applied Probability}, 39:123--136.
+
+\bibitem{Cox55}
+Cox, D. R. (1955).
+\newblock Some statistical methods connected with series of events.
+\newblock \emph{Journal of the Royal Statistical Society: Series B (Methodological)}, 17(2):129--164.
+
+\bibitem{DVJ03}
+Daley, D. J. and Vere-Jones, D. (2003).
+\newblock \emph{An Introduction to the Theory of Point Processes, Volume I: Elementary Theory and Methods}.
+\newblock 2nd edition, Springer, New York.
+
+\bibitem{DVJ07}
+Daley, D. J. and Vere-Jones, D. (2007).
+\newblock \emph{An Introduction to the Theory of Point Processes, Volume II: General Theory and Structure}.
+\newblock Springer Science \& Business Media, New York.
+
+\bibitem{DZ13}
+Dassios, A. and Zhao, H. (2013).
+\newblock Exact simulation of Hawkes process with exponentially decaying intensity.
+\newblock \emph{Electronic Communications in Probability}, 18:1--13.
+
+\bibitem{Emb11}
+Embrechts, P., Liniger, T., and Lin, L. (2011).
+\newblock Multivariate Hawkes processes: an application to financial data.
+\newblock \emph{Journal of Applied Probability}, 48A:367--378.
+
+\bibitem{Fie15}
+Fierro, R., Leiva, V., and M{\o}ller, J. (2015).
+\newblock The Hawkes process with different exciting functions and its asymptotic behavior.
+\newblock \emph{Journal of Applied Probability}, 52(1):37--54.
+
+\bibitem{Gom25}
+Gompertz, B. (1825).
+\newblock On the nature of the function expressive of the law of human mortality, and on a new mode of determining the value of life contingencies.
+\newblock \emph{Philosophical Transactions of the Royal Society of London}, 115:513--583.
+
+\bibitem{Haw71}
+Hawkes, A. G. (1971).
+\newblock Spectra of some self-exciting and mutually exciting point processes.
+\newblock \emph{Biometrika}, 58(1):83--90.
+
+\bibitem{Haw72}
+Hawkes, A. G. (1972).
+\newblock Spectra of some mutually exciting point processes with associated variables.
+\newblock In Lewis, P. A. W., editor, \emph{Stochastic Point Processes}, pages 261--271. Wiley, New York.
+
+\bibitem{HO74}
+Hawkes, A. G. and Oakes, D. (1974).
+\newblock A cluster representation of a self-exciting process.
+\newblock \emph{Journal of Applied Probability}, 11:493--503.
+
+\bibitem{Haw18}
+Hawkes, A. G. (2018).
+\newblock Hawkes processes and their applications to finance: a review.
+\newblock \emph{Quantitative Finance}, 18(2):193--198.
+
+\bibitem{Jac75}
+Jacod, J. (1975).
+\newblock Multivariate point processes: predictable projection, Radon-Nikod\'ym derivatives, representation of martingales.
+\newblock \emph{Z. Wahrscheinlichkeitstheorie und Verw. Gebiete}, 31:235--253.
+
+\bibitem{JJ24}
+Joseph, S. and Jain, S. (2024).
+\newblock Non-parametric estimation of multi-dimensional marked Hawkes processes.
+\newblock \emph{arXiv preprint}, arXiv:2402.04740.
+
+\bibitem{KZ15}
+Karabash, D. and Zhu, L. (2015).
+\newblock \emph{Limit Theorems for Marked Hawkes Processes with Application to a Risk Model}.
+\newblock arXiv:1211.4039v3.
+
+\bibitem{LB95}
+Last, G. and Brandt, A. (1995).
+\newblock \emph{Marked Point Processes on the Real Line: The Dynamic Approach}.
+\newblock Probability and its Applications (New York). Springer-Verlag, New York.
+
+\bibitem{LLPT24}
+Laub, P. J., Lee, Y., Pollett, P. K., and Taimre, T. (2024).
+\newblock Hawkes models and their applications.
+\newblock \emph{arXiv preprint}, arXiv:2405.10527.
+
+\bibitem{LLT22}
+Laub, P. J., Lee, Y., and Taimre, T. (2022).
+\newblock \emph{The Elements of Hawkes Processes}.
+\newblock Springer, Cham, Switzerland.
+
+\bibitem{Les22}
+Lesage, L., Deaconu, M., Lejay, A., Meira, J. A., Nichil, G., and State, R. (2022).
+\newblock Hawkes processes framework with a Gamma density as excitation function: application to natural disasters for insurance.
+\newblock \emph{Methodology and Computing in Applied Probability}, 24(4):2509--2537.
+
+\bibitem{Lew12}
+Lewis, E., Mohler, G., Brantingham, P. J., and Bertozzi, A. L. (2012).
+\newblock Self-exciting point process models of civilian deaths in Iraq.
+\newblock \emph{Security Journal}, 25(3):244--264.
+
+\bibitem{LS79}
+Lewis, P. A. W. and Shedler, G. S. (1979).
+\newblock Simulation of nonhomogeneous Poisson processes by thinning.
+\newblock \emph{Naval Research Logistics Quarterly}, 26(3):403--413.
+
+\bibitem{Lin09}
+Liniger, T. J. (2009).
+\newblock \emph{Multivariate Hawkes Processes}.
+\newblock Ph.D. thesis, ETH Zurich.
+
+\bibitem{Mak60}
+Makeham, W. M. (1860).
+\newblock On the law of mortality and the construction of annuity tables.
+\newblock \emph{The Assurance Magazine and Journal of the Institute of Actuaries}, 8:301--310.
+
+\bibitem{MZ14}
+Mehrdad, B. and Zhu, L. (2014).
+\newblock On the Hawkes process with different exciting functions.
+\newblock \emph{arXiv:1403.0994}.
+
+\bibitem{MR05}
+M{\o}ller, J. and Rasmussen, J. G. (2005).
+\newblock Perfect simulation of Hawkes processes.
+\newblock \emph{Advances in Applied Probability}, 37(3):629--646.
+
+\bibitem{MR06}
+M{\o}ller, J. and Rasmussen, J. G. (2006).
+\newblock Approximate simulation of Hawkes processes.
+\newblock \emph{Methodology and Computing in Applied Probability}, 8(1):53--64.
+
+\bibitem{Oak75}
+Oakes, D. (1975).
+\newblock The Markovian self-exciting process.
+\newblock \emph{Journal of Applied Probability}, 12:69--77.
+
+\bibitem{Oga81}
+Ogata, Y. (1981).
+\newblock On Lewis' simulation method for point processes.
+\newblock \emph{IEEE Transactions on Information Theory}, 27(1):23--31.
+
+\bibitem{Oga88}
+Ogata, Y. (1988).
+\newblock Statistical models for earthquake occurrences and residual analysis for point processes.
+\newblock \emph{Journal of the American Statistical Association}, 83(401):9--27.
+
+\bibitem{Oza79}
+Ozaki, T. (1979).
+\newblock Maximum likelihood estimation of Hawkes' self-exciting point processes.
+\newblock \emph{Annals of the Institute of Statistical Mathematics}, 31(1):145--155.
+
+\bibitem{Pai97}
+Pai, J. S. (1997).
+\newblock Generating random variates with a given force of mortality and finding a suitable force of mortality by theoretical quantile-quantile plots.
+\newblock \emph{Actuarial Research Clearing House}, 1:293--312.
+
+\bibitem{Uts95}
+Utsu, T., Ogata, Y., et al. (1995).
+\newblock The centenary of the Omori formula for a decay law of aftershock activity.
+\newblock \emph{Journal of Physics of the Earth}, 43(1):1--33.
+
+\bibitem{Whe16}
+Wheatley, S., Filimonov, V., and Sornette, D. (2016).
+\newblock The Hawkes process with renewal immigration and its estimation with an EM algorithm.
+\newblock \emph{Computational Statistics \& Data Analysis}, 94:120--135.
+
+\end{thebibliography}
+
+\end{document}

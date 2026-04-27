@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# Mac
+.DS_Store
+
+# Outputs (reproducibility)
+numerical_experiments/outputs/
+
+# LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
