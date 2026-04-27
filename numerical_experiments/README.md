@@ -62,21 +62,3 @@ python scripts/02_make_fig7_1_dz13_one_path.py
 python scripts/03_make_fig7_2_and_table7_1_monte_carlo.py --n-paths 100000
 ```
 
-## Numerical specification
-
-The main numerical experiment follows Dassios and Zhao (2013), Algorithm 3.1:
-
-```math
-\lambda_t
-=
-a + (\lambda_0-a)e^{-\delta t}
-+ \sum_{T_i<t} X_i e^{-\delta(t-T_i)} .
-```
-
-with
-
-```math
-X_i\sim \mathrm{Exp}(1.2),
-\qquad
-(a,\delta;\beta;\lambda_0)=(0.9,1.0;1.2;0.9).
-```
