@@ -84,9 +84,6 @@ The code reproduces:
 ## Author
 
 **Duc Huy Lam**
-MSc in Applied Economics (Economic Data Analytics)
-University of Padova
-
 ---
 
 
