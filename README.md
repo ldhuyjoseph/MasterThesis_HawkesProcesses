@@ -22,9 +22,9 @@ This thesis focuses on:
 
 ```text
 .
-├── latex/          # Full LaTeX source of the thesis
-├── pdf/            # Final compiled thesis PDF
-├── numerical/      # Reproducible Python code
+├── thesis_latex/          # Full LaTeX source of the thesis
+├── thesis_pdf/            # Final compiled thesis PDF
+├── numerical_experiments/      # Reproducible Python code
 │   ├── src/        # Core implementation (simulation, plotting, tables)
 │   ├── scripts/    # Reproducible experiment scripts
 │   └── outputs/    # (ignored) generated figures and tables
