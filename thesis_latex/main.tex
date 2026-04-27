@@ -34,6 +34,13 @@
 \usepackage{xcolor}
 \usepackage{microtype}
 \usepackage{hyperref}
+% ------------------------------------------------------------
+% Reproducibility links (GitHub)
+% ------------------------------------------------------------
+\newcommand{\githubrepo}{https://github.com/ldhuyjoseph/MasterThesis_paper-code}
+
+\newcommand{\figlink}[1]{\href{\githubrepo/numerical_experiments/outputs/figures/#1}{[GitHub]}}
+\newcommand{\tablelink}[1]{\href{\githubrepo/numerical_experiments/outputs/tables/#1}{[GitHub]}}
 
 \hypersetup{
   colorlinks=true,
@@ -811,7 +818,11 @@ Within Figure~\ref{fig:onepath}, the top panel presents a histogram of event arr
 }{%
     \fbox{\parbox{0.85\linewidth}{\centering Missing figure: \texttt{good\_fig2\_paper\_style.png}}}%
 }
-    \caption{One Simulated Sample Path of Hawkes process $(N,\lambda)$}
+    \caption{
+One simulated sample path of the Hawkes process $(N,\lambda)$.
+Reproducible output available at 
+\figlink{Fig7_1_dz13_one_path.png}.
+}
     \label{fig:onepath}
 \end{figure}
 \noindent
@@ -831,8 +842,11 @@ and compare them with the corresponding theoretical values derived from Proposit
 }{%
     \fbox{\parbox{0.85\linewidth}{\centering Missing figure: \texttt{good\_fig3\_T20\_M100000\_integer.png}}}%
 }
-    \caption{Comparison between Exact and Simulated Expectation and Variance of $N_t$
-and $\lambda_t$}
+    \caption{
+Comparison between theoretical and simulated moments of $N_t$ and $\lambda_t$.
+Reproducible output available at 
+\figlink{Fig7_2_dz13_monte_carlo_comparison.png}.
+}
     \label{fig:momentcomp}
 \end{figure}
 
@@ -841,8 +855,12 @@ and $\lambda_t$}
 We present a short error analysis from which several observations can be made. First, the empirical estimates closely match theoretical values across all $T$, with relative errors typically below $0.1\%$, confirming the correctness and numerical stability of the Algorithm~\ref{alg:1}. Second, errors do not systematically increase with time, indicating that the algorithm does not accumulate discretization bias — it is based on exact arrival time simulation rather than time discretization (see Dassios and Zhao (2013) and the discussion in Section~\ref{sec:7.1}). Finally, the agreement for both first and second moments demonstrates that the algorithm correctly captures not only mean behavior but also second-order fluctuations. Overall, this numerical evidence, replicating the experiments in Chapter~4 of Dassios and Zhao (2013) \cite{DZ13}, successfully (re-)verifies the proposed algorithm.
 \begin{table}[H]
 \centering
-\caption{Comparison between Theoretical Formulas and Simulation Results
-($T=1,\dots,20$, $M=100{,}000$)}
+\caption{
+Comparison between theoretical formulas and Monte Carlo simulation results
+($T=1,\dots,20$, $M=100{,}000$).
+Full reproducible table available at 
+\tablelink{Table7_1_dz13_monte_carlo.csv}.
+}
 \label{tab:moment}
 \begin{tabular}{c|ccc|ccc|ccc}
 \hline
