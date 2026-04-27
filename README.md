@@ -48,28 +48,6 @@ We implement the exact event-driven simulation scheme and reproduce:
 
 ---
 
-## Model Specification
-
-We consider the Hawkes process:
-
-[
-\lambda_t
-=========
-
-a + (\lambda_0 - a)e^{-\delta t}
-
-* \sum_{T_i < t} X_i e^{-\delta(t - T_i)}
-  ]
-
-with:
-
-[
-X_i \sim \mathrm{Exp}(1.2), \quad
-(a, \delta; \beta; \lambda_0) = (0.9, 1.0; 1.2; 0.9)
-]
-
----
-
 ## Reproducibility
 
 ### Install dependencies
